@@ -1,0 +1,47 @@
+﻿<Window x:Class="RobsPdfEditor.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="MainWindow" Height="631" Width="1549">
+    <Grid Background="LightGray">
+        <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Hidden">
+            <ItemsControl x:Name="pageThumbs">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <StackPanel Orientation="Horizontal">
+                            <StackPanel.Resources>
+                                <!--<Style TargetType="{x:Type Label}">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding PdfPageCode}" Value="Split">
+                                            <Setter Property="Visibility" Value="Hidden" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>-->
+                            </StackPanel.Resources>
+                        </StackPanel>
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Grid Margin="10" Width="{Binding ThumbWidth}">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="60"/>
+                                <RowDefinition Height="{Binding ThumbHeight}"/>
+                                <RowDefinition Height="40"/>
+                            </Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="20"/>
+                            </Grid.ColumnDefinitions>
+                            
+                            <!--<Button Tag="{Binding PageNumStr}">-->
+                            <Image x:Name="SplitIcon" Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" Margin="0,0,-8,0" HorizontalAlignment="Right" VerticalAlignment="Bottom" Source="{Binding SplitIconImg}" Width="20" Visibility="{Binding SplitIconVisibility}" Tag="{Binding PageNumStr}" MouseDown="SplitIcon_MouseDown"></Image>
+                            <Image Grid.Row="1" Source="{Binding ThumbBitmap}" Tag="{Binding PageNumStr}" Stretch="UniformToFill" />
+                            <Rectangle x:Name="SplitLine" Grid.Row="1" Grid.Column="1" Grid.RowSpan="2" HorizontalAlignment="Right" Width="3" StrokeThickness="0" Fill="#FFDC0032" Visibility="{Binding SplitLineVisibility}"/>
+                            <Label Grid.Row="2" Grid.Column="0" Content="{Binding PageNumStr}" Foreground="White" Background="#FF354B53"  FontWeight="SemiBold" Opacity="0.80"></Label>
+                        </Grid>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+    </Grid>
+</Window>

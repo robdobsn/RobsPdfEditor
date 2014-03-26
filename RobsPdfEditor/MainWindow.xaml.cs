@@ -23,9 +23,11 @@ namespace RobsPdfEditor
     /// </summary>
     public partial class MainWindow : Window
     {
-        ObservableCollection<PdfPageInfo> _pdfPageList = new ObservableCollection<PdfPageInfo>();
-        BitmapImage splitIconOff;
-        BitmapImage splitIconOn;
+        private ObservableCollection<PdfPageInfo> _pdfPageList = new ObservableCollection<PdfPageInfo>();
+        private BitmapImage splitIconOff;
+        private BitmapImage splitIconOn;
+        private BitmapImage deleteIconOff;
+        private BitmapImage deleteIconOn;
 
         public MainWindow()
         {
@@ -37,6 +39,8 @@ namespace RobsPdfEditor
 
             splitIconOff = new BitmapImage(new Uri("res/scissorsgray.png", UriKind.Relative));
             splitIconOn = new BitmapImage(new Uri("res/scissorsred.png", UriKind.Relative));
+            deleteIconOff = new BitmapImage(new Uri("res/appbar.delete.gray.png", UriKind.Relative));
+            deleteIconOn = new BitmapImage(new Uri("res/appbar.delete.red.png", UriKind.Relative));
 
             string[] filePaths = Directory.GetFiles(thumbPath, "*.png");
             for (int i = 0; i < 30; i++)
@@ -51,11 +55,7 @@ namespace RobsPdfEditor
                 pgInfo.ThumbWidth = bitmap.Width;
                 pgInfo.ThumbHeight = bitmap.Height;
                 pgInfo.SplitIconImg = splitIconOff;
-                if (i == 3)
-                {
-                    pgInfo.SplitLineVisibility = Visibility.Visible;
-                    pgInfo.SplitIconImg = splitIconOn;
-                }
+                pgInfo.DeleteIconImg = deleteIconOff;
                 if (i == 29)
                     pgInfo.SplitIconVisibility = Visibility.Hidden;
                 _pdfPageList.Add(pgInfo);
@@ -145,17 +145,27 @@ namespace RobsPdfEditor
                 get { return _splitIconImg; }
                 set { _splitIconImg = value; NotifyPropertyChanged("SplitIconImg"); }
             }
-
-
+            private BitmapImage _deleteIconImg = null;
+            public BitmapImage DeleteIconImg
+            {
+                get { return _deleteIconImg; }
+                set { _deleteIconImg = value; NotifyPropertyChanged("DeleteIconImg"); }
+            }
+            private Visibility _pageDeleteVisibility = Visibility.Hidden;
+            public Visibility PageDeleteVisibility
+            {
+                get { return _pageDeleteVisibility; }
+                set { _pageDeleteVisibility = value; NotifyPropertyChanged("PageDeleteVisibility"); }
+            }
         }
 
         private void SplitIcon_MouseDown(object sender, MouseButtonEventArgs e)
         {
             string tag = ((Image)sender).Tag.ToString();
-            int splitPos = 0;
-            if (Int32.TryParse(tag, out splitPos))
+            int splitAfterPageNum = 0;
+            if (Int32.TryParse(tag, out splitAfterPageNum))
             {
-                ToggleSplitDocAfterPage(splitPos);
+                ToggleSplitDocAfterPage(splitAfterPageNum);
             }
         }
 
@@ -173,6 +183,105 @@ namespace RobsPdfEditor
                 {
                     _pdfPageList[pageIdx].SplitLineVisibility = System.Windows.Visibility.Hidden;
                     _pdfPageList[pageIdx].SplitIconImg = splitIconOff;
+                }
+            }
+        }
+
+        private void PageImage_MouseMove(object sender, MouseEventArgs e)
+        {
+            Image fromImg = sender as Image;
+            if (fromImg != null && e.LeftButton == MouseButtonState.Pressed)
+            {
+                DragDrop.DoDragDrop(fromImg, fromImg.Tag, DragDropEffects.Move);
+            }
+        }
+
+        private void PageImage_DragEnter(object sender, DragEventArgs e)
+        {
+            Image toImg = sender as Image;
+            if (toImg != null)
+            {
+                // If the DataObject contains string data, extract it
+                if (e.Data.GetDataPresent(DataFormats.StringFormat))
+                {
+                    string dataString = (string)e.Data.GetData(DataFormats.StringFormat);
+                    Console.WriteLine("DragEnter dragging from " + dataString + " to " + toImg.Tag);
+                }
+            }
+        }
+
+        private void PageImage_DragLeave(object sender, DragEventArgs e)
+        {
+            Image toImg = sender as Image;
+            if (toImg != null)
+            {
+                Console.WriteLine("DragLeave " + toImg.Tag);
+                // restore previous values
+            }
+        }
+
+        private void PageImage_DragOver(object sender, DragEventArgs e)
+        {
+            e.Effects = DragDropEffects.None;
+
+            // If the DataObject contains string data, extract it. 
+            if (e.Data.GetDataPresent(DataFormats.StringFormat))
+            {
+                string dataString = (string)e.Data.GetData(DataFormats.StringFormat);
+
+                e.Effects = DragDropEffects.Copy | DragDropEffects.Move;
+            } 
+        }
+
+        private void PageImage_Drop(object sender, DragEventArgs e)
+        {
+            Image toImg = sender as Image;
+            if (toImg != null)
+            {
+                // If the DataObject contains string data, extract it
+                if (e.Data.GetDataPresent(DataFormats.StringFormat))
+                {
+                    string dataString = (string)e.Data.GetData(DataFormats.StringFormat);
+                    Console.WriteLine("Drop dragged from " + dataString + " to " + toImg.Tag);
+
+                    // Find the items in the collection
+                    int fromPageIdx = _pdfPageList.IndexOf(_pdfPageList.Where(X => X.PageNumStr == dataString).FirstOrDefault());
+                    if (fromPageIdx < 0)
+                        return;
+                    int toPageIdx = _pdfPageList.IndexOf(_pdfPageList.Where(X => X.PageNumStr == toImg.Tag.ToString()).FirstOrDefault());
+                    if (toPageIdx < 0)
+                        return;
+                    
+                    // Update the list
+                    _pdfPageList.Move(fromPageIdx, toPageIdx);
+                }
+            }
+        }
+
+        private void DeleteIcon_MouseDown(object sender, MouseButtonEventArgs e)
+        {
+            string tag = ((Image)sender).Tag.ToString();
+            int pageNum = 0;
+            if (Int32.TryParse(tag, out pageNum))
+            {
+                ToggleDeletePage(pageNum);
+            }
+        }
+
+        private void ToggleDeletePage(int pageNum)
+        {
+            int pageIdx = pageNum - 1;
+            if ((pageIdx >= 0) && (pageIdx < _pdfPageList.Count))
+            {
+                if (_pdfPageList[pageIdx].DeleteIconImg == deleteIconOff)
+                {
+                    _pdfPageList[pageIdx].DeleteIconImg = deleteIconOn;
+                    _pdfPageList[pageIdx].PageDeleteVisibility = System.Windows.Visibility.Visible;
+                }
+                else
+                {
+                    _pdfPageList[pageIdx].DeleteIconImg = deleteIconOff;
+                    _pdfPageList[pageIdx].PageDeleteVisibility = System.Windows.Visibility.Hidden;
                 }
             }
         }

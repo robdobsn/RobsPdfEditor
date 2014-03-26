@@ -34,8 +34,13 @@
                             </Grid.ColumnDefinitions>
                             
                             <!--<Button Tag="{Binding PageNumStr}">-->
-                            <Image x:Name="SplitIcon" Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" Margin="0,0,-8,0" HorizontalAlignment="Right" VerticalAlignment="Bottom" Source="{Binding SplitIconImg}" Width="20" Visibility="{Binding SplitIconVisibility}" Tag="{Binding PageNumStr}" MouseDown="SplitIcon_MouseDown"></Image>
-                            <Image Grid.Row="1" Source="{Binding ThumbBitmap}" Tag="{Binding PageNumStr}" Stretch="UniformToFill" />
+                            <Image x:Name="DeleteIcon" Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="1" HorizontalAlignment="Center" VerticalAlignment="Center" Source="{Binding DeleteIconImg}" Width="20" Tag="{Binding PageNumStr}" MouseDown="DeleteIcon_MouseDown"></Image>
+                            <Image x:Name="SplitIcon" Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" Margin="0,0,-8,0" HorizontalAlignment="Right" VerticalAlignment="Center" Source="{Binding SplitIconImg}" Width="20" Visibility="{Binding SplitIconVisibility}" Tag="{Binding PageNumStr}" MouseDown="SplitIcon_MouseDown"></Image>
+                            <Image x:Name="PageImage" Grid.Row="1" Source="{Binding ThumbBitmap}" Tag="{Binding PageNumStr}" Stretch="UniformToFill" MouseMove="PageImage_MouseMove" AllowDrop="True" DragEnter="PageImage_DragEnter" DragLeave="PageImage_DragLeave" DragOver="PageImage_DragOver" Drop="PageImage_Drop"/>
+                            <Grid Grid.Row="1" Grid.Column="0" Width="{Binding ElementName=PageImage,Path=ActualWidth}" Height="{Binding ElementName=PageImage,Path=ActualHeight}" Opacity=".75">
+                                <Line x:Name="DeleteStrike1" Visibility="{Binding PageDeleteVisibility}" X1="0" Y1="0" X2="200" Y2="200" Stroke="#FFDC0032" StrokeThickness="7" HorizontalAlignment="Center" VerticalAlignment="Center"></Line>
+                                <Line x:Name="DeleteStrike2" Visibility="{Binding PageDeleteVisibility}" X1="0" Y1="200" X2="200" Y2="0" Stroke="#FFDC0032" StrokeThickness="7" HorizontalAlignment="Center" VerticalAlignment="Center"></Line>
+                            </Grid>
                             <Rectangle x:Name="SplitLine" Grid.Row="1" Grid.Column="1" Grid.RowSpan="2" HorizontalAlignment="Right" Width="3" StrokeThickness="0" Fill="#FFDC0032" Visibility="{Binding SplitLineVisibility}"/>
                             <Label Grid.Row="2" Grid.Column="0" Content="{Binding PageNumStr}" Foreground="White" Background="#FF354B53"  FontWeight="SemiBold" Opacity="0.80"></Label>
                         </Grid>

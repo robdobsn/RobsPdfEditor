@@ -1,4 +1,6 @@
-﻿using System;
+﻿using MahApps.Metro.Controls;
+using Microsoft.WindowsAPICodePack.Dialogs;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
@@ -22,14 +24,14 @@ namespace RobsPdfEditor
     /// <summary>
     /// Interaction logic for MainWindow.xaml
     /// </summary>
-    public partial class MainWindow : Window
+    public partial class MainWindow
     {
         private ObservableCollection<PdfPageInfo> _pdfPageList = new ObservableCollection<PdfPageInfo>();
         private BitmapImage splitIconOff;
         private BitmapImage splitIconOn;
         private BitmapImage deleteIconOff;
         private BitmapImage deleteIconOn;
-        const int THUMBNAIL_HEIGHT = 400;
+        const int THUMBNAIL_HEIGHT = 600;
         const int POINTS_PER_INCH = 50;
         private PdfRasterizer _pdfRasterizer;
         private BackgroundWorker _bwThreadForPages;
@@ -37,8 +39,6 @@ namespace RobsPdfEditor
 
         public MainWindow()
         {
-            string thumbPath = @"\\MACALLAN\Admin\ScanAdmin\ScannedDocImgs\201212\";
-
             InitializeComponent();
             pageThumbs.ItemsSource = _pdfPageList;
 
@@ -52,38 +52,24 @@ namespace RobsPdfEditor
             _bwThreadForPages.WorkerSupportsCancellation = true;
             _bwThreadForPages.WorkerReportsProgress = true;
             _bwThreadForPages.DoWork += new DoWorkEventHandler(AddPages_DoWork);
-
-
-            //string[] filePaths = Directory.GetFiles(thumbPath, "*.png");
-            //for (int i = 0; i < 30; i++)
-            //{
-            //    if (i >= filePaths.Length)
-            //        break;
-            //    BitmapImage bitmap = LoadThumbnail(filePaths[i], THUMBNAIL_HEIGHT);
-            //    PdfPageInfo pgInfo = new PdfPageInfo();
-            //    pgInfo.PageNumStr = (i + 1).ToString();
-            //    pgInfo.ThumbBitmap = bitmap;
-            //    pgInfo.SplitLineVisibility = Visibility.Hidden;
-            //    pgInfo.ThumbWidth = bitmap.Width;
-            //    pgInfo.ThumbHeight = bitmap.Height;
-            //    pgInfo.SplitIconImg = splitIconOff;
-            //    pgInfo.DeleteIconImg = deleteIconOff;
-            //    if (i == 1)
-            //        pgInfo.PageRotation = 0;
-            //    if (i == 29)
-            //        pgInfo.SplitIconVisibility = Visibility.Hidden;
-            //    _pdfPageList.Add(pgInfo);
-            //}
-
-
         }
 
         public void OpenFile(string fileName)
         {
-            _pdfPageList.Clear();
-            _curFileName = fileName;
+            _bwThreadForPages.CancelAsync();
 
             // Use a background worker to populate
+            for (int i = 0; i < 5; i++)
+            {
+                if (!_bwThreadForPages.IsBusy)
+                    break;
+                Thread.Sleep(100);
+            }
+            if (_bwThreadForPages.IsBusy)
+                return;
+
+            _pdfPageList.Clear();
+            _curFileName = fileName;
             _bwThreadForPages.RunWorkerAsync();
         }
 
@@ -113,10 +99,6 @@ namespace RobsPdfEditor
                     pgInfo.ThumbHeight = bitmap.Height;
                     pgInfo.SplitIconImg = splitIconOff;
                     pgInfo.DeleteIconImg = deleteIconOff;
-                    if (i == 1)
-                        pgInfo.PageRotation = 0;
-                    if (i == 29)
-                        pgInfo.SplitIconVisibility = Visibility.Hidden;
                     _pdfPageList.Add(pgInfo);
                 });
                 Thread.Sleep(50);
@@ -237,23 +219,7 @@ namespace RobsPdfEditor
             {
                 get 
                 {
-                    return Math.Max(_thumbHeight, ThumbWidth) + 20;
-                    //int pgRot = (int)_pageRotation;
-                    //if ((pgRot == 90) || (pgRot == 270))
-                    //    return _thumbHeight + 20;
-                    //return _thumbWidth + 20;
-                }
-            }
-            public double CellHeight
-            {
-                get 
-                {
-                    return THUMBNAIL_HEIGHT;
-                    //return Math.Max(_thumbHeight, ThumbWidth);
-                    //int pgRot = (int)_pageRotation;
-                    //if ((pgRot == 90) || (pgRot == 270))
-                    //    return _thumbWidth;
-                    //return _thumbHeight;
+                    return Math.Max(_thumbHeight, _thumbWidth) + 20;
                 }
             }
         }
@@ -418,11 +384,17 @@ namespace RobsPdfEditor
             }
         }
 
-        private void Button_Click(object sender, RoutedEventArgs e)
+        private void btnOpenFile_Click(object sender, RoutedEventArgs e)
         {
-            string pdfPath = @"\\MACALLAN\Admin\ScanAdmin\ScanDocBackups";
-            string pdfName = @"2012_04_05_16_04_09_Binder1.pdf";
-            OpenFile(System.IO.Path.Combine(pdfPath, pdfName));
+            CommonOpenFileDialog cofd = new CommonOpenFileDialog("Select PDF file");
+            cofd.Multiselect = false;
+            cofd.InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+            cofd.Filters.Add(new CommonFileDialogFilter("PDF File", ".pdf"));
+            CommonFileDialogResult result = cofd.ShowDialog(this);
+            if (result == CommonFileDialogResult.Ok)
+            {
+                OpenFile(cofd.FileName);
+            }
         }
     }
 }

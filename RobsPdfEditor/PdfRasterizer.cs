@@ -66,6 +66,11 @@ namespace RobsPdfEditor
             try
             {
                 img = _rasterizer.GetPage(_pointsPerInch, _pointsPerInch, pageNum);
+                // Rotate image as required
+                int pageIdx = pageNum - 1;
+                if (pageIdx < _pageRotationInfo.Count)
+                    if (_pageRotationInfo[pageIdx] != 0)
+                        img = RotateImageWithoutCrop(img, _pageRotationInfo[pageIdx]);
                 _pageCache.Add(pageNum, img);
             }
             catch (Exception excp)

@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2011/08/nuspec.xsd">
+  <metadata>
+    <id>Ghostscript.NET</id>
+    <version>1.1.5</version>
+    <title>Ghostscript.NET</title>
+    <authors>Josip Habjan</authors>
+    <owners>Josip Habjan</owners>
+    <licenseUrl>http://ghostscriptnet.codeplex.com/license</licenseUrl>
+    <projectUrl>http://ghostscriptnet.codeplex.com/</projectUrl>
+    <iconUrl>http://c.fsdn.com/allura/p/ghostscriptnet/icon</iconUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <description>Ghostscript.NET (written in C#) is the most completed managed wrapper library around the Ghostscript library (32-bit &amp; 64-bit), an interpreter for the PostScript language, PDF, related software and documentation.</description>
+    <releaseNotes>Fixed the default cropping to the BoundingBox problem for the EPS file format in the GhostscriptViewer and GhostscriptRasterizer (reported by "midora"). Exposed GhostscriptViewer.EPSClip and GhostscriptRasterizer.EPSClip properties with a default value set to true (affects only EPS format). Fixed problem with the paths that contains diacritics (reported by "GambitRicky"). Added GhostscriptProcessor.Started and GhostscriptProcessor.Completed events. (requested by "Ray H."). All methods that works with MemoryStream are changed to use a generic Stream type (suggested by "midora").</releaseNotes>
+    <copyright>Copyright (c) 2013-2014 by Josip Habjan</copyright>
+    <language />
+    <tags>.NET ghostscript pdf converson image</tags>
+  </metadata>
+</package>

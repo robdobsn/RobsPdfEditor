@@ -28,11 +28,15 @@ namespace RobsPdfEditor
         private BitmapImage splitIconOn;
         private BitmapImage deleteIconOff;
         private BitmapImage deleteIconOn;
+        const int THUMBNAIL_HEIGHT = 400;
+        const int POINTS_PER_INCH = 50;
+        private PdfRasterizer _pdfRasterizer;
 
         public MainWindow()
         {
-            const int THUMBNAIL_HEIGHT = 600;
             string thumbPath = @"\\MACALLAN\Admin\ScanAdmin\ScannedDocImgs\201212\";
+            string pdfPath = @"\\MACALLAN\Admin\ScanAdmin\ScanDocBackups";
+            string pdfName = @"2012_04_05_16_04_09_Binder1.pdf";
 
             InitializeComponent();
             pageThumbs.ItemsSource = _pdfPageList;
@@ -42,12 +46,11 @@ namespace RobsPdfEditor
             deleteIconOff = new BitmapImage(new Uri("res/appbar.delete.gray.png", UriKind.Relative));
             deleteIconOn = new BitmapImage(new Uri("res/appbar.delete.red.png", UriKind.Relative));
 
-            string[] filePaths = Directory.GetFiles(thumbPath, "*.png");
-            for (int i = 0; i < 30; i++)
+            _pdfRasterizer = new PdfRasterizer(System.IO.Path.Combine(pdfPath, pdfName), POINTS_PER_INCH);
+
+            for (int i = 0; i < _pdfRasterizer.NumPages(); i++)
             {
-                if (i >= filePaths.Length)
-                    break;
-                BitmapImage bitmap = LoadThumbnail(filePaths[i], THUMBNAIL_HEIGHT);
+                BitmapImage bitmap = ConvertToBitmap(_pdfRasterizer.GetPageImage(i+1));
                 PdfPageInfo pgInfo = new PdfPageInfo();
                 pgInfo.PageNumStr = (i + 1).ToString();
                 pgInfo.ThumbBitmap = bitmap;
@@ -56,12 +59,47 @@ namespace RobsPdfEditor
                 pgInfo.ThumbHeight = bitmap.Height;
                 pgInfo.SplitIconImg = splitIconOff;
                 pgInfo.DeleteIconImg = deleteIconOff;
+                if (i == 1)
+                    pgInfo.PageRotation = 0;
                 if (i == 29)
                     pgInfo.SplitIconVisibility = Visibility.Hidden;
                 _pdfPageList.Add(pgInfo);
             }
 
 
+            //string[] filePaths = Directory.GetFiles(thumbPath, "*.png");
+            //for (int i = 0; i < 30; i++)
+            //{
+            //    if (i >= filePaths.Length)
+            //        break;
+            //    BitmapImage bitmap = LoadThumbnail(filePaths[i], THUMBNAIL_HEIGHT);
+            //    PdfPageInfo pgInfo = new PdfPageInfo();
+            //    pgInfo.PageNumStr = (i + 1).ToString();
+            //    pgInfo.ThumbBitmap = bitmap;
+            //    pgInfo.SplitLineVisibility = Visibility.Hidden;
+            //    pgInfo.ThumbWidth = bitmap.Width;
+            //    pgInfo.ThumbHeight = bitmap.Height;
+            //    pgInfo.SplitIconImg = splitIconOff;
+            //    pgInfo.DeleteIconImg = deleteIconOff;
+            //    if (i == 1)
+            //        pgInfo.PageRotation = 0;
+            //    if (i == 29)
+            //        pgInfo.SplitIconVisibility = Visibility.Hidden;
+            //    _pdfPageList.Add(pgInfo);
+            //}
+
+
+        }
+
+        private BitmapImage ConvertToBitmap(System.Drawing.Image img)
+        {
+            MemoryStream ms = new MemoryStream();
+            img.Save(ms, System.Drawing.Imaging.ImageFormat.Jpeg);
+            System.Windows.Media.Imaging.BitmapImage bImg = new System.Windows.Media.Imaging.BitmapImage();
+            bImg.BeginInit();
+            bImg.StreamSource = new MemoryStream(ms.ToArray());
+            bImg.EndInit();
+            return bImg;
         }
 
         public BitmapImage LoadThumbnail(string imgFileName, int heightOfThumbnail)
@@ -156,6 +194,35 @@ namespace RobsPdfEditor
             {
                 get { return _pageDeleteVisibility; }
                 set { _pageDeleteVisibility = value; NotifyPropertyChanged("PageDeleteVisibility"); }
+            }
+            private double _pageRotation = 0;
+            public double PageRotation
+            {
+                get { return _pageRotation; }
+                set { _pageRotation = value; NotifyPropertyChanged("PageRotation"); NotifyPropertyChanged("CellWidth"); NotifyPropertyChanged("CellHeight"); }
+            }
+            public double CellWidth
+            {
+                get 
+                {
+                    return Math.Max(_thumbHeight, ThumbWidth) + 20;
+                    //int pgRot = (int)_pageRotation;
+                    //if ((pgRot == 90) || (pgRot == 270))
+                    //    return _thumbHeight + 20;
+                    //return _thumbWidth + 20;
+                }
+            }
+            public double CellHeight
+            {
+                get 
+                {
+                    return THUMBNAIL_HEIGHT;
+                    //return Math.Max(_thumbHeight, ThumbWidth);
+                    //int pgRot = (int)_pageRotation;
+                    //if ((pgRot == 90) || (pgRot == 270))
+                    //    return _thumbWidth;
+                    //return _thumbHeight;
+                }
             }
         }
 
@@ -283,6 +350,39 @@ namespace RobsPdfEditor
                     _pdfPageList[pageIdx].DeleteIconImg = deleteIconOff;
                     _pdfPageList[pageIdx].PageDeleteVisibility = System.Windows.Visibility.Hidden;
                 }
+            }
+        }
+
+        private void RotateACWIcon_MouseDown(object sender, MouseButtonEventArgs e)
+        {
+            string tag = ((Image)sender).Tag.ToString();
+            int pageNum = 0;
+            if (Int32.TryParse(tag, out pageNum))
+            {
+                RotatePage(pageNum, -90);
+            }
+        }
+
+        private void RotateCWIcon_MouseDown(object sender, MouseButtonEventArgs e)
+        {
+            string tag = ((Image)sender).Tag.ToString();
+            int pageNum = 0;
+            if (Int32.TryParse(tag, out pageNum))
+            {
+                RotatePage(pageNum, 90);
+            }
+        }
+
+        private void RotatePage(int pageNum, double angle)
+        {
+            int pageIdx = pageNum - 1;
+            if ((pageIdx >= 0) && (pageIdx < _pdfPageList.Count))
+            {
+                double reqdRotation = _pdfPageList[pageIdx].PageRotation + angle;
+                while (reqdRotation < 0)
+                    reqdRotation += 360;
+                reqdRotation = reqdRotation % 360;
+                _pdfPageList[pageIdx].PageRotation = reqdRotation;
             }
         }
     }

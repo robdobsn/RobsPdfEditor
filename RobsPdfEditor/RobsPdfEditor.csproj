@@ -34,8 +34,15 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="Ghostscript.NET">
+      <HintPath>..\packages\Ghostscript.NET.1.1.5\lib\net40\Ghostscript.NET.dll</HintPath>
+    </Reference>
+    <Reference Include="itextsharp">
+      <HintPath>..\packages\iTextSharp.5.5.0\lib\itextsharp.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Data" />
+    <Reference Include="System.Drawing" />
     <Reference Include="System.Xml" />
     <Reference Include="Microsoft.CSharp" />
     <Reference Include="System.Core" />
@@ -67,6 +74,7 @@
     </Compile>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="PdfRasterizer.cs" />
     <Compile Include="Properties\AssemblyInfo.cs">
       <SubType>Code</SubType>
     </Compile>
@@ -84,6 +92,7 @@
       <Generator>ResXFileCodeGenerator</Generator>
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>
     </EmbeddedResource>
+    <None Include="packages.config" />
     <None Include="Properties\Settings.settings">
       <Generator>SettingsSingleFileGenerator</Generator>
       <LastGenOutput>Settings.Designer.cs</LastGenOutput>
@@ -109,6 +118,10 @@
   <ItemGroup>
     <Resource Include="res\appbar.delete.gray.png" />
     <Resource Include="res\appbar.delete.red.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <Resource Include="res\appbar.transform.rotate.clockwise.gray.png" />
+    <Resource Include="res\appbar.transform.rotate.counterclockwise.gray.png" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

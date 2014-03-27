@@ -8,16 +8,17 @@
             <RowDefinition Height="93"/>
             <RowDefinition/>
         </Grid.RowDefinitions>
-        <Grid Grid.Row="0">
+        <Grid Grid.Row="0" Background="#FF6A6A6A">
             <Grid.RowDefinitions>
                 <RowDefinition Height="39*"/>
                 <RowDefinition Height="11*"/>
             </Grid.RowDefinitions>
-            <Label HorizontalAlignment="Left" Height="32" Margin="10,19,0,0" VerticalAlignment="Top" Width="64" Content="Input">
+            <Label HorizontalAlignment="Left" Height="32" Margin="10,19,0,0" VerticalAlignment="Top" Width="64" Content="Input" Foreground="White">
             </Label>
-            <Label HorizontalAlignment="Left" Height="32" Margin="74,19,0,0" VerticalAlignment="Top" Width="282">
+            <Label x:Name="lblInputFileName" HorizontalAlignment="Left" Height="32" Margin="74,19,0,0" VerticalAlignment="Top" Width="307" Foreground="White">
             </Label>
             <Button x:Name="btnOpenFile" Content="..." HorizontalAlignment="Left" Height="31" Margin="386,20,0,0" VerticalAlignment="Top" Width="71" Style="{DynamicResource SquareButtonStyle}" Click="btnOpenFile_Click" />
+            <Button x:Name="btnSaveFile" Content="Save" HorizontalAlignment="Left" Height="31" Margin="475,20,0,0" VerticalAlignment="Top" Width="71" Style="{DynamicResource SquareButtonStyle}" Click="btnSaveFile_Click" />
 
         </Grid>
         <ScrollViewer Grid.Row="1"  HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Hidden">
@@ -42,12 +43,11 @@
                 </ItemsControl.ItemsPanel>
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
-                        <Grid Margin="10" Width="{Binding CellWidth}">
+                        <Grid Margin="10" Width="520">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="60"/>
-                                <RowDefinition Height="600*"/>
+                                <RowDefinition Height="500"/>
                                 <RowDefinition Height="40"/>
-                                <RowDefinition Height="*"/>
                             </Grid.RowDefinitions>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
@@ -59,7 +59,7 @@
                             <Image x:Name="RotateCWIcon" Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="1"  VerticalAlignment="Center" Width="20" Tag="{Binding PageNumStr}" Source="res/appbar.transform.rotate.clockwise.gray.png" HorizontalAlignment="Center" Margin="150,0,0,0" MouseDown="RotateCWIcon_MouseDown"></Image>
                             <Image x:Name="DeleteIcon" Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="1" HorizontalAlignment="Center" VerticalAlignment="Center" Source="{Binding DeleteIconImg}" Width="20" Tag="{Binding PageNumStr}" MouseDown="DeleteIcon_MouseDown"></Image>
                             <Image x:Name="SplitIcon" Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" Margin="0,0,-8,0" HorizontalAlignment="Right" VerticalAlignment="Center" Source="{Binding SplitIconImg}" Width="20" Visibility="{Binding SplitIconVisibility}" Tag="{Binding PageNumStr}" MouseDown="SplitIcon_MouseDown"></Image>
-                            <Image x:Name="PageImage" Grid.Row="1" Source="{Binding ThumbBitmap}" Tag="{Binding PageNumStr}" Stretch="UniformToFill" MouseMove="PageImage_MouseMove" AllowDrop="True" DragEnter="PageImage_DragEnter" DragLeave="PageImage_DragLeave" DragOver="PageImage_DragOver" Drop="PageImage_Drop" RenderTransformOrigin="0.5,0.5" Width="{Binding ThumbWidth}" Height="{Binding ThumbHeight}" >
+                            <Image x:Name="PageImage" Grid.Row="1" Source="{Binding ThumbBitmap}" Tag="{Binding PageNumStr}" Stretch="Uniform" MouseMove="PageImage_MouseMove" AllowDrop="True" DragEnter="PageImage_DragEnter" DragLeave="PageImage_DragLeave" DragOver="PageImage_DragOver" Drop="PageImage_Drop" RenderTransformOrigin="0.5,0.5" Width="500" Height="500" >
                                 <Image.RenderTransform>
                                     <TransformGroup>
                                         <RotateTransform Angle="{Binding PageRotation}"/>

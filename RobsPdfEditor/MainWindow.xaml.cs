@@ -1,4 +1,6 @@
-﻿using MahApps.Metro.Controls;
+﻿using iTextSharp.text;
+using iTextSharp.text.pdf;
+using MahApps.Metro.Controls;
 using Microsoft.WindowsAPICodePack.Dialogs;
 using System;
 using System.Collections.Generic;
@@ -70,6 +72,7 @@ namespace RobsPdfEditor
 
             _pdfPageList.Clear();
             _curFileName = fileName;
+            lblInputFileName.Content = System.IO.Path.GetFileName(fileName);
             _bwThreadForPages.RunWorkerAsync();
         }
 
@@ -215,28 +218,20 @@ namespace RobsPdfEditor
                 get { return _pageRotation; }
                 set { _pageRotation = value; NotifyPropertyChanged("PageRotation"); NotifyPropertyChanged("CellWidth"); NotifyPropertyChanged("CellHeight"); }
             }
-            public double CellWidth
-            {
-                get 
-                {
-                    return Math.Max(_thumbHeight, _thumbWidth) + 20;
-                }
-            }
+
         }
 
         private void SplitIcon_MouseDown(object sender, MouseButtonEventArgs e)
         {
-            string tag = ((Image)sender).Tag.ToString();
-            int splitAfterPageNum = 0;
-            if (Int32.TryParse(tag, out splitAfterPageNum))
-            {
-                ToggleSplitDocAfterPage(splitAfterPageNum);
-            }
+            string tag = ((System.Windows.Controls.Image)sender).Tag.ToString();
+            int onPageIdx = _pdfPageList.IndexOf(_pdfPageList.Where(X => X.PageNumStr == tag).FirstOrDefault());
+            if (onPageIdx < 0)
+                return;
+            ToggleSplitDocAfterPage(onPageIdx);
         }
 
-        private void ToggleSplitDocAfterPage(int pageNum)
+        private void ToggleSplitDocAfterPage(int pageIdx)
         {
-            int pageIdx = pageNum - 1;
             if ((pageIdx >= 0) && (pageIdx < _pdfPageList.Count))
             {
                 if (_pdfPageList[pageIdx].SplitLineVisibility == System.Windows.Visibility.Hidden)
@@ -254,7 +249,7 @@ namespace RobsPdfEditor
 
         private void PageImage_MouseMove(object sender, MouseEventArgs e)
         {
-            Image fromImg = sender as Image;
+            System.Windows.Controls.Image fromImg = sender as System.Windows.Controls.Image;
             if (fromImg != null && e.LeftButton == MouseButtonState.Pressed)
             {
                 DragDrop.DoDragDrop(fromImg, fromImg.Tag, DragDropEffects.Move);
@@ -263,7 +258,7 @@ namespace RobsPdfEditor
 
         private void PageImage_DragEnter(object sender, DragEventArgs e)
         {
-            Image toImg = sender as Image;
+            System.Windows.Controls.Image toImg = sender as System.Windows.Controls.Image;
             if (toImg != null)
             {
                 // If the DataObject contains string data, extract it
@@ -277,7 +272,7 @@ namespace RobsPdfEditor
 
         private void PageImage_DragLeave(object sender, DragEventArgs e)
         {
-            Image toImg = sender as Image;
+            System.Windows.Controls.Image toImg = sender as System.Windows.Controls.Image;
             if (toImg != null)
             {
                 Console.WriteLine("DragLeave " + toImg.Tag);
@@ -300,7 +295,7 @@ namespace RobsPdfEditor
 
         private void PageImage_Drop(object sender, DragEventArgs e)
         {
-            Image toImg = sender as Image;
+            System.Windows.Controls.Image toImg = sender as System.Windows.Controls.Image;
             if (toImg != null)
             {
                 // If the DataObject contains string data, extract it
@@ -325,17 +320,15 @@ namespace RobsPdfEditor
 
         private void DeleteIcon_MouseDown(object sender, MouseButtonEventArgs e)
         {
-            string tag = ((Image)sender).Tag.ToString();
-            int pageNum = 0;
-            if (Int32.TryParse(tag, out pageNum))
-            {
-                ToggleDeletePage(pageNum);
-            }
+            string tag = ((System.Windows.Controls.Image)sender).Tag.ToString();
+            int onPageIdx = _pdfPageList.IndexOf(_pdfPageList.Where(X => X.PageNumStr == tag).FirstOrDefault());
+            if (onPageIdx < 0)
+                return;
+            ToggleDeletePage(onPageIdx);
         }
 
-        private void ToggleDeletePage(int pageNum)
+        private void ToggleDeletePage(int pageIdx)
         {
-            int pageIdx = pageNum - 1;
             if ((pageIdx >= 0) && (pageIdx < _pdfPageList.Count))
             {
                 if (_pdfPageList[pageIdx].DeleteIconImg == deleteIconOff)
@@ -353,27 +346,24 @@ namespace RobsPdfEditor
 
         private void RotateACWIcon_MouseDown(object sender, MouseButtonEventArgs e)
         {
-            string tag = ((Image)sender).Tag.ToString();
-            int pageNum = 0;
-            if (Int32.TryParse(tag, out pageNum))
-            {
-                RotatePage(pageNum, -90);
-            }
+            string tag = ((System.Windows.Controls.Image)sender).Tag.ToString();
+            int onPageIdx = _pdfPageList.IndexOf(_pdfPageList.Where(X => X.PageNumStr == tag).FirstOrDefault());
+            if (onPageIdx < 0)
+                return;
+            RotatePage(onPageIdx, -90);
         }
 
         private void RotateCWIcon_MouseDown(object sender, MouseButtonEventArgs e)
         {
-            string tag = ((Image)sender).Tag.ToString();
-            int pageNum = 0;
-            if (Int32.TryParse(tag, out pageNum))
-            {
-                RotatePage(pageNum, 90);
-            }
+            string tag = ((System.Windows.Controls.Image)sender).Tag.ToString();
+            int onPageIdx = _pdfPageList.IndexOf(_pdfPageList.Where(X => X.PageNumStr == tag).FirstOrDefault());
+            if (onPageIdx < 0)
+                return;
+            RotatePage(onPageIdx, 90);
         }
 
-        private void RotatePage(int pageNum, double angle)
+        private void RotatePage(int pageIdx, double angle)
         {
-            int pageIdx = pageNum - 1;
             if ((pageIdx >= 0) && (pageIdx < _pdfPageList.Count))
             {
                 double reqdRotation = _pdfPageList[pageIdx].PageRotation + angle;
@@ -395,6 +385,84 @@ namespace RobsPdfEditor
             {
                 OpenFile(cofd.FileName);
             }
+        }
+
+        private void btnSaveFile_Click(object sender, RoutedEventArgs e)
+        {
+            // Extract info from pdf using iTextSharp
+            using (Stream inPDFStream = new FileStream(_curFileName, FileMode.Open, FileAccess.Read))
+            {
+                using (PdfReader pdfReader = new PdfReader(inPDFStream))
+                {
+                    int pdfOutFileIdx = 0;
+                    int pdfPageListIdx = 0;
+
+                    // Loop through PDFs to be created
+                    while (pdfPageListIdx < _pdfPageList.Count)
+                    {
+                        // Skip deleted pages
+                        if (_pdfPageList[pdfPageListIdx].PageDeleteVisibility == System.Windows.Visibility.Visible)
+                        {
+                            pdfPageListIdx++;
+                            continue;
+                        }
+
+                        // Create output PDF
+                        string outFileName = GenOutFileName(_curFileName, pdfOutFileIdx);
+                        if (File.Exists(outFileName))
+                        {
+                            MessageBox.Show("Output File Exists", "Problem Saving", MessageBoxButton.OK, MessageBoxImage.Exclamation);
+                            return;
+                        }
+                        using (FileStream fs = new FileStream(outFileName, FileMode.Create, FileAccess.Write, FileShare.None))
+                        {
+                            using (Document doc = new Document(pdfReader.GetPageSizeWithRotation(1)))
+                            {
+                                // Duplicate the pages required
+                                using (PdfCopy copy = new PdfCopy(doc, fs))
+                                {
+                                    doc.Open();
+                                    copy.SetLinearPageMode();
+
+                                    // Go through pages in this PDF
+                                    while (pdfPageListIdx < _pdfPageList.Count)
+                                    {
+                                        // Skip deleted pages
+                                        if (_pdfPageList[pdfPageListIdx].PageDeleteVisibility != System.Windows.Visibility.Visible)
+                                        {
+                                            // Add the page
+                                            int pageNum = 0;
+                                            Int32.TryParse(_pdfPageList[pdfPageListIdx].PageNumStr, out pageNum);
+                                            copy.AddPage(copy.GetImportedPage(pdfReader, pageNum));
+                                        }
+
+                                        // Check if this is the last page in this PDF
+                                        if (_pdfPageList[pdfPageListIdx].SplitIconVisibility != System.Windows.Visibility.Hidden)
+                                        {
+                                            pdfPageListIdx++;
+                                            break;
+                                        }
+
+                                        // Next in list
+                                        pdfPageListIdx++;
+                                    }
+
+                                    doc.Close();
+                                }
+                            }
+                        }
+
+                        // Next file
+                        pdfOutFileIdx++;
+                    }
+                }
+            }
+        }
+
+        private string GenOutFileName(string curFileName, int fileIdx)
+        {
+            string fileName = System.IO.Path.GetFileNameWithoutExtension(curFileName) + "_" + fileIdx.ToString() + System.IO.Path.GetExtension(curFileName);
+            return System.IO.Path.Combine(System.IO.Path.GetDirectoryName(curFileName), fileName);
         }
     }
 }

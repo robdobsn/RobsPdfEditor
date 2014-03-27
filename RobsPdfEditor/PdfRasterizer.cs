@@ -14,7 +14,7 @@ namespace RobsPdfEditor
     class PdfRasterizer
     {
         private GhostscriptVersionInfo _lastInstalledVersion = null;
-        private GhostscriptRasterizer _rasterizer = null;
+        private static GhostscriptRasterizer _rasterizer = new GhostscriptRasterizer();
         private Dictionary<int, System.Drawing.Image> _pageCache = new Dictionary<int, System.Drawing.Image>();
         private string _inputPdfPath;
         private List<int> _pageRotationInfo = new List<int>();
@@ -44,8 +44,6 @@ namespace RobsPdfEditor
                 GhostscriptVersionInfo.GetLastInstalledVersion(
                         GhostscriptLicense.GPL | GhostscriptLicense.AFPL,
                         GhostscriptLicense.GPL);
-
-            _rasterizer = new GhostscriptRasterizer();
 
             _rasterizer.Open(inputPdfPath, _lastInstalledVersion, false);
             _inputPdfPath = inputPdfPath;

@@ -5,6 +5,7 @@ using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -31,12 +32,12 @@ namespace RobsPdfEditor
         const int THUMBNAIL_HEIGHT = 400;
         const int POINTS_PER_INCH = 50;
         private PdfRasterizer _pdfRasterizer;
+        private BackgroundWorker _bwThreadForPages;
+        private string _curFileName;
 
         public MainWindow()
         {
             string thumbPath = @"\\MACALLAN\Admin\ScanAdmin\ScannedDocImgs\201212\";
-            string pdfPath = @"\\MACALLAN\Admin\ScanAdmin\ScanDocBackups";
-            string pdfName = @"2012_04_05_16_04_09_Binder1.pdf";
 
             InitializeComponent();
             pageThumbs.ItemsSource = _pdfPageList;
@@ -46,25 +47,11 @@ namespace RobsPdfEditor
             deleteIconOff = new BitmapImage(new Uri("res/appbar.delete.gray.png", UriKind.Relative));
             deleteIconOn = new BitmapImage(new Uri("res/appbar.delete.red.png", UriKind.Relative));
 
-            _pdfRasterizer = new PdfRasterizer(System.IO.Path.Combine(pdfPath, pdfName), POINTS_PER_INCH);
-
-            for (int i = 0; i < _pdfRasterizer.NumPages(); i++)
-            {
-                BitmapImage bitmap = ConvertToBitmap(_pdfRasterizer.GetPageImage(i+1));
-                PdfPageInfo pgInfo = new PdfPageInfo();
-                pgInfo.PageNumStr = (i + 1).ToString();
-                pgInfo.ThumbBitmap = bitmap;
-                pgInfo.SplitLineVisibility = Visibility.Hidden;
-                pgInfo.ThumbWidth = bitmap.Width;
-                pgInfo.ThumbHeight = bitmap.Height;
-                pgInfo.SplitIconImg = splitIconOff;
-                pgInfo.DeleteIconImg = deleteIconOff;
-                if (i == 1)
-                    pgInfo.PageRotation = 0;
-                if (i == 29)
-                    pgInfo.SplitIconVisibility = Visibility.Hidden;
-                _pdfPageList.Add(pgInfo);
-            }
+            // Page filler thread
+            _bwThreadForPages = new BackgroundWorker();
+            _bwThreadForPages.WorkerSupportsCancellation = true;
+            _bwThreadForPages.WorkerReportsProgress = true;
+            _bwThreadForPages.DoWork += new DoWorkEventHandler(AddPages_DoWork);
 
 
             //string[] filePaths = Directory.GetFiles(thumbPath, "*.png");
@@ -89,6 +76,51 @@ namespace RobsPdfEditor
             //}
 
 
+        }
+
+        public void OpenFile(string fileName)
+        {
+            _pdfPageList.Clear();
+            _curFileName = fileName;
+
+            // Use a background worker to populate
+            _bwThreadForPages.RunWorkerAsync();
+        }
+
+        private void AddPages_DoWork(object sender, DoWorkEventArgs e)
+        {
+            BackgroundWorker worker = sender as BackgroundWorker;
+            _pdfRasterizer = new PdfRasterizer(_curFileName, POINTS_PER_INCH);
+
+            for (int i = 0; i < _pdfRasterizer.NumPages(); i++)
+            {
+                if ((worker.CancellationPending == true))
+                {
+                    e.Cancel = true;
+                    break;
+                }
+
+                System.Drawing.Image pageImg = _pdfRasterizer.GetPageImage(i + 1);
+
+                this.Dispatcher.BeginInvoke((Action)delegate()
+                {
+                    BitmapImage bitmap = ConvertToBitmap(pageImg);
+                    PdfPageInfo pgInfo = new PdfPageInfo();
+                    pgInfo.PageNumStr = (i + 1).ToString();
+                    pgInfo.ThumbBitmap = bitmap;
+                    pgInfo.SplitLineVisibility = Visibility.Hidden;
+                    pgInfo.ThumbWidth = bitmap.Width;
+                    pgInfo.ThumbHeight = bitmap.Height;
+                    pgInfo.SplitIconImg = splitIconOff;
+                    pgInfo.DeleteIconImg = deleteIconOff;
+                    if (i == 1)
+                        pgInfo.PageRotation = 0;
+                    if (i == 29)
+                        pgInfo.SplitIconVisibility = Visibility.Hidden;
+                    _pdfPageList.Add(pgInfo);
+                });
+                Thread.Sleep(50);
+            }
         }
 
         private BitmapImage ConvertToBitmap(System.Drawing.Image img)
@@ -384,6 +416,13 @@ namespace RobsPdfEditor
                 reqdRotation = reqdRotation % 360;
                 _pdfPageList[pageIdx].PageRotation = reqdRotation;
             }
+        }
+
+        private void Button_Click(object sender, RoutedEventArgs e)
+        {
+            string pdfPath = @"\\MACALLAN\Admin\ScanAdmin\ScanDocBackups";
+            string pdfName = @"2012_04_05_16_04_09_Binder1.pdf";
+            OpenFile(System.IO.Path.Combine(pdfPath, pdfName));
         }
     }
 }

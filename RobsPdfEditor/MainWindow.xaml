@@ -3,7 +3,23 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="MainWindow" Height="800" Width="1552">
     <Grid Background="LightGray">
-        <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Hidden">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="135"/>
+            <RowDefinition/>
+        </Grid.RowDefinitions>
+        <Grid Grid.Row="0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="39*"/>
+                <RowDefinition Height="11*"/>
+            </Grid.RowDefinitions>
+            <Label HorizontalAlignment="Left" Height="32" Margin="10,19,0,0" VerticalAlignment="Top" Width="64" Content="File">
+            </Label>
+            <Label HorizontalAlignment="Left" Height="32" Margin="74,19,0,0" VerticalAlignment="Top" Width="282">
+            </Label>
+            <Button Content="Button" HorizontalAlignment="Left" Height="31" Margin="386,20,0,0" VerticalAlignment="Top" Width="71" Click="Button_Click"/>
+
+        </Grid>
+        <ScrollViewer Grid.Row="1"  HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Hidden">
             <ItemsControl x:Name="pageThumbs">
                 <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate>

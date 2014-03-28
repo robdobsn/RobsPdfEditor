@@ -2,6 +2,7 @@
 using iTextSharp.text.pdf;
 using MahApps.Metro.Controls;
 using Microsoft.WindowsAPICodePack.Dialogs;
+using NLog;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -28,16 +29,18 @@ namespace RobsPdfEditor
     /// </summary>
     public partial class MainWindow
     {
+        private static Logger logger = LogManager.GetCurrentClassLogger();
         private ObservableCollection<PdfPageInfo> _pdfPageList = new ObservableCollection<PdfPageInfo>();
-        private BitmapImage splitIconOff;
-        private BitmapImage splitIconOn;
-        private BitmapImage deleteIconOff;
-        private BitmapImage deleteIconOn;
+        public static BitmapImage splitIconOff;
+        public static BitmapImage splitIconOn;
+        public static BitmapImage deleteIconOff;
+        public static BitmapImage deleteIconOn;
         const int THUMBNAIL_HEIGHT = 600;
         const int POINTS_PER_INCH = 50;
         private PdfRasterizer _pdfRasterizer;
         private BackgroundWorker _bwThreadForPages;
-        private string _curFileName = "";
+        private List<string> _curFileNames = new List<string>();
+        private int _curBackgroundLoadingFileIdx = 0;
         private string _windowTitle = "Rob's PDF Editor";
         private bool _changesMade = false;
 
@@ -64,231 +67,40 @@ namespace RobsPdfEditor
         {
             if (changesMade)
                 _changesMade = true;
-            RobsPDFEditor.Title = _windowTitle + (_curFileName == "" ? "" : (" - " + System.IO.Path.GetFileName(_curFileName) + (_changesMade ? " *" : "")));
+            RobsPDFEditor.Title = _windowTitle + ((_curFileNames.Count > 0) ? "" : (" - " + System.IO.Path.GetFileName(_curFileNames[0]) + (_changesMade ? " *" : "")));
         }
 
-        public void OpenFile(string fileName)
-        {
-            _bwThreadForPages.CancelAsync();
-
-            // Use a background worker to populate
-            for (int i = 0; i < 5; i++)
-            {
-                if (!_bwThreadForPages.IsBusy)
-                    break;
-                Thread.Sleep(100);
-            }
-            if (_bwThreadForPages.IsBusy)
-                return;
-
-            _pdfPageList.Clear();
-            _curFileName = fileName;
-            _changesMade = false;
-            UpdateWindowTitle();
-            _bwThreadForPages.RunWorkerAsync();
-        }
-
-        private void AddPages_DoWork(object sender, DoWorkEventArgs e)
-        {
-            BackgroundWorker worker = sender as BackgroundWorker;
-            _pdfRasterizer = new PdfRasterizer(_curFileName, POINTS_PER_INCH);
-
-            for (int i = 0; i < _pdfRasterizer.NumPages(); i++)
-            {
-                if ((worker.CancellationPending == true))
-                {
-                    e.Cancel = true;
-                    break;
-                }
-
-                System.Drawing.Image pageImg = _pdfRasterizer.GetPageImage(i + 1);
-
-                this.Dispatcher.BeginInvoke((Action)delegate()
-                {
-                    BitmapImage bitmap = ConvertToBitmap(pageImg);
-                    PdfPageInfo pgInfo = new PdfPageInfo();
-                    pgInfo.PageNumStr = (i + 1).ToString();
-                    pgInfo.ThumbBitmap = bitmap;
-                    pgInfo.SplitLineVisibility = Visibility.Hidden;
-                    pgInfo.ThumbWidth = bitmap.Width;
-                    pgInfo.ThumbHeight = bitmap.Height;
-                    pgInfo.SplitIconImg = splitIconOff;
-                    pgInfo.DeleteIconImg = deleteIconOff;
-                    _pdfPageList.Add(pgInfo);
-                });
-                Thread.Sleep(50);
-            }
-        }
-
-        private BitmapImage ConvertToBitmap(System.Drawing.Image img)
-        {
-            MemoryStream ms = new MemoryStream();
-            img.Save(ms, System.Drawing.Imaging.ImageFormat.Jpeg);
-            System.Windows.Media.Imaging.BitmapImage bImg = new System.Windows.Media.Imaging.BitmapImage();
-            bImg.BeginInit();
-            bImg.StreamSource = new MemoryStream(ms.ToArray());
-            bImg.EndInit();
-            return bImg;
-        }
-
-        public BitmapImage LoadThumbnail(string imgFileName, int heightOfThumbnail)
-        {
-            // The thumbnailStr can be either a string like "uniqName~pageNum" OR a full file path
-            BitmapImage bitmap = null;
-            if ((imgFileName == "") || (!File.Exists(imgFileName)))
-            {
-                //                logger.Info("Thumbnail file doesn't exist for {0}", imgFileName);
-            }
-            else
-            {
-                try
-                {
-                    bitmap = new System.Windows.Media.Imaging.BitmapImage();
-                    bitmap.BeginInit();
-                    bitmap.UriSource = new Uri("File:" + imgFileName);
-                    bitmap.DecodePixelHeight = heightOfThumbnail;
-                    bitmap.EndInit();
-                }
-                catch (Exception excp)
-                {
-                    //                    logger.Error("Loading thumbnail file {0} excp {1}", imgFileName, excp.Message);
-                    bitmap = null;
-                }
-            }
-            return bitmap;
-        }
-
-        class PdfPageInfo : INotifyPropertyChanged
-        {
-            public event PropertyChangedEventHandler PropertyChanged;
-
-            private void NotifyPropertyChanged(string propertyName)
-            {
-                if (PropertyChanged != null)
-                {
-                    PropertyChanged(this, new PropertyChangedEventArgs(propertyName));
-                }
-            }
-
-            private BitmapImage _thumbnailBitmap;
-            public BitmapImage ThumbBitmap
-            {
-                get { return _thumbnailBitmap; }
-                set { _thumbnailBitmap = value; NotifyPropertyChanged("ThumbBitmap"); }
-            }
-            private int _pageNum;
-            public string PageNumStr
-            {
-                get { return _pageNum.ToString(); }
-                set { Int32.TryParse(value, out _pageNum); NotifyPropertyChanged("PageNumStr"); }
-            }
-            private Visibility _splitLineVisibility = Visibility.Hidden;
-            public Visibility SplitLineVisibility
-            {
-                get { return _splitLineVisibility; }
-                set { _splitLineVisibility = value; NotifyPropertyChanged("SplitLineVisibility"); }
-            }
-            private double _thumbWidth = 0;
-            public double ThumbWidth
-            {
-                get { return _thumbWidth; }
-                set { _thumbWidth = value; NotifyPropertyChanged("ThumbWidth"); }
-            }
-            private double _thumbHeight;
-            public double ThumbHeight
-            {
-                get { return _thumbHeight; }
-                set { _thumbHeight = value; NotifyPropertyChanged("ThumbHeight"); }
-            }
-            private Visibility _splitIconVisibility = Visibility.Visible;
-            public Visibility SplitIconVisibility
-            {
-                get { return _splitIconVisibility; }
-                set { _splitIconVisibility = value; NotifyPropertyChanged("SplitIconVisibility"); }
-            }
-            private BitmapImage _splitIconImg = null;
-            public BitmapImage SplitIconImg
-            {
-                get { return _splitIconImg; }
-                set { _splitIconImg = value; NotifyPropertyChanged("SplitIconImg"); }
-            }
-            private BitmapImage _deleteIconImg = null;
-            public BitmapImage DeleteIconImg
-            {
-                get { return _deleteIconImg; }
-                set { _deleteIconImg = value; NotifyPropertyChanged("DeleteIconImg"); }
-            }
-            private Visibility _pageDeleteVisibility = Visibility.Hidden;
-            public Visibility PageDeleteVisibility
-            {
-                get { return _pageDeleteVisibility; }
-                set { _pageDeleteVisibility = value; NotifyPropertyChanged("PageDeleteVisibility"); }
-            }
-            private double _pageRotation = 0;
-            public double PageRotation
-            {
-                get { return _pageRotation; }
-                set { _pageRotation = value; NotifyPropertyChanged("PageRotation"); NotifyPropertyChanged("CellWidth"); NotifyPropertyChanged("CellHeight"); }
-            }
-
-        }
-
-        private void SplitIcon_MouseDown(object sender, MouseButtonEventArgs e)
-        {
-            string tag = ((System.Windows.Controls.Image)sender).Tag.ToString();
-            int onPageIdx = _pdfPageList.IndexOf(_pdfPageList.Where(X => X.PageNumStr == tag).FirstOrDefault());
-            if (onPageIdx < 0)
-                return;
-            ToggleSplitDocAfterPage(onPageIdx);
-        }
-
-        private void ToggleSplitDocAfterPage(int pageIdx)
-        {
-            if ((pageIdx >= 0) && (pageIdx < _pdfPageList.Count))
-            {
-                if (_pdfPageList[pageIdx].SplitLineVisibility == System.Windows.Visibility.Hidden)
-                {
-                    _pdfPageList[pageIdx].SplitLineVisibility = System.Windows.Visibility.Visible;
-                    _pdfPageList[pageIdx].SplitIconImg = splitIconOn;
-                }
-                else
-                {
-                    _pdfPageList[pageIdx].SplitLineVisibility = System.Windows.Visibility.Hidden;
-                    _pdfPageList[pageIdx].SplitIconImg = splitIconOff;
-                }
-            }
-            UpdateWindowTitle(true);
-        }
+        #region Drag and Drop Handling
 
         private void PageImage_MouseMove(object sender, MouseEventArgs e)
         {
-            System.Windows.Controls.Image fromImg = sender as System.Windows.Controls.Image;
-            if (fromImg != null && e.LeftButton == MouseButtonState.Pressed)
+            string elemTag = GetElementTag(sender);
+            if (elemTag != "" && e.LeftButton == MouseButtonState.Pressed)
             {
-                DragDrop.DoDragDrop(fromImg, fromImg.Tag, DragDropEffects.Move);
+                DragDrop.DoDragDrop((StackPanel)sender, elemTag, DragDropEffects.Move);
             }
         }
 
         private void PageImage_DragEnter(object sender, DragEventArgs e)
         {
-            System.Windows.Controls.Image toImg = sender as System.Windows.Controls.Image;
-            if (toImg != null)
+            string elemTag = GetElementTag(sender);
+            if (elemTag != "")
             {
                 // If the DataObject contains string data, extract it
                 if (e.Data.GetDataPresent(DataFormats.StringFormat))
                 {
                     string dataString = (string)e.Data.GetData(DataFormats.StringFormat);
-                    Console.WriteLine("DragEnter dragging from " + dataString + " to " + toImg.Tag);
+                    Console.WriteLine("DragEnter dragging from " + dataString + " to " + elemTag);
                 }
             }
         }
 
         private void PageImage_DragLeave(object sender, DragEventArgs e)
         {
-            System.Windows.Controls.Image toImg = sender as System.Windows.Controls.Image;
-            if (toImg != null)
+            string elemTag = GetElementTag(sender);
+            if (elemTag != "")
             {
-                Console.WriteLine("DragLeave " + toImg.Tag);
+                Console.WriteLine("DragLeave " + elemTag);
                 // restore previous values
             }
         }
@@ -308,20 +120,20 @@ namespace RobsPdfEditor
 
         private void PageImage_Drop(object sender, DragEventArgs e)
         {
-            System.Windows.Controls.Image toImg = sender as System.Windows.Controls.Image;
-            if (toImg != null)
+            string elemTag = GetElementTag(sender);
+            if (elemTag != "")
             {
                 // If the DataObject contains string data, extract it
                 if (e.Data.GetDataPresent(DataFormats.StringFormat))
                 {
                     string dataString = (string)e.Data.GetData(DataFormats.StringFormat);
-                    Console.WriteLine("Drop dragged from " + dataString + " to " + toImg.Tag);
+                    Console.WriteLine("Drop dragged from " + dataString + " to " + elemTag);
 
                     // Find the items in the collection
-                    int fromPageIdx = _pdfPageList.IndexOf(_pdfPageList.Where(X => X.PageNumStr == dataString).FirstOrDefault());
+                    int fromPageIdx = FindTagInPageList(dataString);
                     if (fromPageIdx < 0)
                         return;
-                    int toPageIdx = _pdfPageList.IndexOf(_pdfPageList.Where(X => X.PageNumStr == toImg.Tag.ToString()).FirstOrDefault());
+                    int toPageIdx = FindTagInPageList(elemTag.ToString());
                     if (toPageIdx < 0)
                         return;
                     
@@ -332,49 +144,54 @@ namespace RobsPdfEditor
             }
         }
 
+        #endregion
+
+        #region Mouse Handling
+
+        private void SplitIcon_MouseDown(object sender, MouseButtonEventArgs e)
+        {
+            int pageIdx = ExtractFileAndPageIdxs(sender);
+            if (pageIdx < 0)
+                return;
+            ToggleSplitDocAfterPage(pageIdx);
+        }
+
+        private void ToggleSplitDocAfterPage(int pageIdx)
+        {
+            if ((pageIdx >= 0) && (pageIdx < _pdfPageList.Count))
+                _pdfPageList[pageIdx].SplitAfter = !_pdfPageList[pageIdx].SplitAfter;
+            UpdateWindowTitle(true);
+        }
+
         private void DeleteIcon_MouseDown(object sender, MouseButtonEventArgs e)
         {
-            string tag = ((System.Windows.Controls.Image)sender).Tag.ToString();
-            int onPageIdx = _pdfPageList.IndexOf(_pdfPageList.Where(X => X.PageNumStr == tag).FirstOrDefault());
-            if (onPageIdx < 0)
+            int pageIdx = ExtractFileAndPageIdxs(sender);
+            if (pageIdx < 0)
                 return;
-            ToggleDeletePage(onPageIdx);
+            ToggleDeletePage(pageIdx);
         }
 
         private void ToggleDeletePage(int pageIdx)
         {
             if ((pageIdx >= 0) && (pageIdx < _pdfPageList.Count))
-            {
-                if (_pdfPageList[pageIdx].DeleteIconImg == deleteIconOff)
-                {
-                    _pdfPageList[pageIdx].DeleteIconImg = deleteIconOn;
-                    _pdfPageList[pageIdx].PageDeleteVisibility = System.Windows.Visibility.Visible;
-                }
-                else
-                {
-                    _pdfPageList[pageIdx].DeleteIconImg = deleteIconOff;
-                    _pdfPageList[pageIdx].PageDeleteVisibility = System.Windows.Visibility.Hidden;
-                }
-            }
+                _pdfPageList[pageIdx].DeletePage = !_pdfPageList[pageIdx].DeletePage;
             UpdateWindowTitle(true);
         }
 
         private void RotateACWIcon_MouseDown(object sender, MouseButtonEventArgs e)
         {
-            string tag = ((System.Windows.Controls.Image)sender).Tag.ToString();
-            int onPageIdx = _pdfPageList.IndexOf(_pdfPageList.Where(X => X.PageNumStr == tag).FirstOrDefault());
-            if (onPageIdx < 0)
+            int pageIdx = ExtractFileAndPageIdxs(sender);
+            if (pageIdx < 0)
                 return;
-            RotatePage(onPageIdx, -90);
+            RotatePage(pageIdx, -90);
         }
 
         private void RotateCWIcon_MouseDown(object sender, MouseButtonEventArgs e)
         {
-            string tag = ((System.Windows.Controls.Image)sender).Tag.ToString();
-            int onPageIdx = _pdfPageList.IndexOf(_pdfPageList.Where(X => X.PageNumStr == tag).FirstOrDefault());
-            if (onPageIdx < 0)
+            int pageIdx = ExtractFileAndPageIdxs(sender);
+            if (pageIdx < 0)
                 return;
-            RotatePage(onPageIdx, 90);
+            RotatePage(pageIdx, 90);
         }
 
         private void RotatePage(int pageIdx, double angle)
@@ -390,9 +207,16 @@ namespace RobsPdfEditor
             UpdateWindowTitle(true);
         }
 
+        #endregion
+
+        #region File Open/Add/Save Handling
+
         private void btnOpenFile_Click(object sender, RoutedEventArgs e)
         {
             if (CancelIfChangesMade())
+                return;
+
+            if (CheckIfThreadBusy())
                 return;
 
             CommonOpenFileDialog cofd = new CommonOpenFileDialog("Select PDF file");
@@ -401,123 +225,223 @@ namespace RobsPdfEditor
             cofd.Filters.Add(new CommonFileDialogFilter("PDF File", ".pdf"));
             CommonFileDialogResult result = cofd.ShowDialog(this);
             if (result == CommonFileDialogResult.Ok)
-            {
                 OpenFile(cofd.FileName);
-            }
         }
+        
+        private void btnAddFile_Click(object sender, RoutedEventArgs e)
+        {
+            if (CheckIfThreadBusy())
+                return;
 
+            CommonOpenFileDialog cofd = new CommonOpenFileDialog("Select PDF file");
+            cofd.Multiselect = false;
+            cofd.InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+            cofd.Filters.Add(new CommonFileDialogFilter("PDF File", ".pdf"));
+            CommonFileDialogResult result = cofd.ShowDialog(this);
+            if (result == CommonFileDialogResult.Ok)
+                AddFile(cofd.FileName);
+
+            UpdateWindowTitle(true);
+        }
+        
         private void btnSaveFile_Click(object sender, RoutedEventArgs e)
         {
-            // Extract info from pdf using iTextSharp
-            using (Stream inPDFStream = new FileStream(_curFileName, FileMode.Open, FileAccess.Read))
+            if (CheckIfThreadBusy())
+                return;
+
+            if (_curFileNames.Count < 1)
+                return;
+
+            // Open pdf readers for each input file
+            List<Stream> inPDFStreams = new List<Stream>();
+            List<PdfReader> pdfReaders = new List<PdfReader>();
+            foreach (string fileName in _curFileNames)
             {
-                using (PdfReader pdfReader = new PdfReader(inPDFStream))
+                try
                 {
-                    int pdfOutFileIdx = 0;
+                    Stream inStream = new FileStream(fileName, FileMode.Open, FileAccess.Read);
+                    inPDFStreams.Add(inStream);
+                    pdfReaders.Add(new PdfReader(inStream));
+                }
+                catch (Exception excp)
+                {
+                    logger.Error("Failed to open input pdf {0} excp {1}", fileName, excp.Message);
+                }
+            }
 
-                    // Loop through PDFs to be created
-                    for (int pdfPageListIdx = 0; pdfPageListIdx < _pdfPageList.Count; pdfPageListIdx++)
+            // Loop through PDFs to be created
+            int pdfOutFileIdx = 0;
+            for (int pdfPageListIdx = 0; pdfPageListIdx < _pdfPageList.Count; pdfPageListIdx++)
+            {
+                // Skip deleted pages
+                if (_pdfPageList[pdfPageListIdx].DeletePage)
+                    continue;
+
+                // Create output PDF
+                string outFileName = GenOutFileName(_curFileNames[0], pdfOutFileIdx++);
+                if (File.Exists(outFileName))
+                {
+                    // Ask the user if they are sure
+                    MessageDialog.Show("Cannot save as output file exists already", "", "", "OK", null, this);
+                    return;
+                }
+
+                using (FileStream fs = new FileStream(outFileName, FileMode.Create, FileAccess.Write, FileShare.None))
+                {
+                    using (Document inDoc = new Document(pdfReaders[0].GetPageSizeWithRotation(1)))
                     {
-                        // Skip deleted pages
-                        if (_pdfPageList[pdfPageListIdx].PageDeleteVisibility == System.Windows.Visibility.Visible)
-                            continue;
-
-                        // Create output PDF
-                        string outFileName = GenOutFileName(_curFileName, pdfOutFileIdx++);
-                        if (File.Exists(outFileName))
+                        using (PdfWriter outputWriter = PdfWriter.GetInstance(inDoc, fs))
                         {
-                            // Ask the user if they are sure
-                            MessageDialog.Show("Cannot save as output file exists already", "", "", "OK", null, this);
-                            return;
-                        }
+                            // Open input
+                            inDoc.Open();
 
-                        using (FileStream fs = new FileStream(outFileName, FileMode.Create, FileAccess.Write, FileShare.None))
-                        {
-                            using (Document inDoc = new Document(pdfReader.GetPageSizeWithRotation(1)))
+                            // Go through pages in input PDF
+                            for (; pdfPageListIdx < _pdfPageList.Count; pdfPageListIdx++)
                             {
-                                using (PdfWriter outputWriter = PdfWriter.GetInstance(inDoc, fs))
+                                // Skip deleted pages
+                                if (!_pdfPageList[pdfPageListIdx].DeletePage)
                                 {
-                                    // Open input
-                                    inDoc.Open();
+                                    // Add the page
+                                    int pageNum = _pdfPageList[pdfPageListIdx].PageNum;
+                                    int fileIdx = _pdfPageList[pdfPageListIdx].FileIndex;
 
-                                    // Go through pages in input PDF
-                                    for (; pdfPageListIdx < _pdfPageList.Count; pdfPageListIdx++)
+                                    // Get rotation
+                                    int pageRotation = pdfReaders[fileIdx].GetPageRotation(pageNum) + (int)_pdfPageList[pdfPageListIdx].PageRotation;
+                                    if (pageRotation < 0)
+                                        pageRotation = pageRotation + 360;
+                                    pageRotation = pageRotation % 360;
+
+                                    // Create a new destination page of the right dimensions
+                                    iTextSharp.text.Rectangle pageSize = pdfReaders[fileIdx].GetPageSizeWithRotation(pageNum);
+                                    if (pageRotation == 90 || pageRotation == 270)
+                                        pageSize = new iTextSharp.text.Rectangle(pageSize.Height, pageSize.Width);
+                                    inDoc.SetPageSize(pageSize);
+                                    inDoc.NewPage();
+
+                                    // Get original page
+                                    PdfImportedPage importedPage = outputWriter.GetImportedPage(pdfReaders[fileIdx], pageNum);
+
+                                    // Handle rotation
+
+                                    var pageWidth = pdfReaders[fileIdx].GetPageSizeWithRotation(pageNum).Width;
+                                    var pageHeight = pdfReaders[fileIdx].GetPageSizeWithRotation(pageNum).Height;
+                                    switch (pageRotation)
                                     {
-                                        // Skip deleted pages
-                                        if (_pdfPageList[pdfPageListIdx].PageDeleteVisibility != System.Windows.Visibility.Visible)
-                                        {
-                                            // Add the page
-                                            int pageNum = 0;
-                                            Int32.TryParse(_pdfPageList[pdfPageListIdx].PageNumStr, out pageNum);
+                                        case 0:
+                                        default:
+                                            outputWriter.DirectContent.AddTemplate(importedPage, 1f, 0, 0, 1f, 0, 0);
+                                            break;
 
-                                            // Get rotation
-                                            int pageRotation = pdfReader.GetPageRotation(pageNum) + (int)_pdfPageList[pdfPageListIdx].PageRotation;
-                                            if (pageRotation < 0)
-                                                pageRotation = pageRotation + 360;
-                                            pageRotation = pageRotation % 360;
+                                        case 90:
+                                            outputWriter.DirectContent.AddTemplate(importedPage, 0, -1f, 1f, 0, 0, pageWidth);
+                                            break;
 
-                                            // Create a new destination page of the right dimensions
-                                            iTextSharp.text.Rectangle pageSize = pdfReader.GetPageSizeWithRotation(pageNum);
-                                            if (pageRotation == 90 || pageRotation == 270)
-                                                pageSize = new iTextSharp.text.Rectangle(pageSize.Height, pageSize.Width);
-                                            inDoc.SetPageSize(pageSize);
-                                            inDoc.NewPage();
+                                        case 180:
+                                            outputWriter.DirectContent.AddTemplate(importedPage, -1f, 0, 0, -1f, pageWidth, pageHeight);
+                                            break;
 
-                                            // Get original page
-                                            PdfImportedPage importedPage = outputWriter.GetImportedPage(pdfReader, pageNum);
-
-                                            // Handle rotation
-
-                                            var pageWidth = pdfReader.GetPageSizeWithRotation(pageNum).Width;
-                                            var pageHeight = pdfReader.GetPageSizeWithRotation(pageNum).Height;
-                                            switch (pageRotation)
-                                            {
-                                                case 0:
-                                                default:
-                                                    outputWriter.DirectContent.AddTemplate(importedPage, 1f, 0, 0, 1f, 0, 0);
-                                                    break;
-
-                                                case 90:
-                                                    outputWriter.DirectContent.AddTemplate(importedPage, 0, -1f, 1f, 0, 0, pageWidth);
-                                                    break;
-
-                                                case 180:
-                                                    outputWriter.DirectContent.AddTemplate(importedPage, -1f, 0, 0, -1f, pageWidth, pageHeight);
-                                                    break;
-
-                                                case 270:
-                                                    outputWriter.DirectContent.AddTemplate(importedPage, 0, 1f, -1f, 0, pageHeight, 0);
-                                                    break;
-                                            }
-                                        }
-
-                                        // Check if this is the last page in this PDF
-                                        if (_pdfPageList[pdfPageListIdx].SplitLineVisibility == System.Windows.Visibility.Visible)
+                                        case 270:
+                                            outputWriter.DirectContent.AddTemplate(importedPage, 0, 1f, -1f, 0, pageHeight, 0);
                                             break;
                                     }
-
-                                    // Close document
-                                    inDoc.Close();
-
                                 }
+
+                                // Check if this is the last page in this PDF
+                                if (_pdfPageList[pdfPageListIdx].SplitAfter)
+                                    break;
                             }
+
+                            // Close document
+                            inDoc.Close();
+
                         }
                     }
                 }
             }
+
+            foreach (PdfReader pdfReader in pdfReaders)
+                pdfReader.Close();
+            foreach (Stream strm in inPDFStreams)
+                strm.Close();
+
             _changesMade = false;
             UpdateWindowTitle();
         }
+
+        #endregion
+
+        #region Open / Add Files
+
+        public void OpenFile(string fileName)
+        {
+            if (CheckIfThreadBusy())
+                return;
+
+            // Add pages to list of pages
+            _pdfPageList.Clear();
+            _curFileNames.Clear();
+            _curFileNames.Add(fileName);
+            _curBackgroundLoadingFileIdx = 0;
+            _changesMade = false;
+            UpdateWindowTitle();
+            _bwThreadForPages.RunWorkerAsync();
+        }
+
+        public void AddFile(string fileName)
+        {
+            if (CheckIfThreadBusy())
+                return;
+
+            // Go through existing list of pages indicating file number should now be shown
+            foreach (PdfPageInfo info in _pdfPageList)
+                info.ShowFileNum = true;
+
+            // Add the file name to the list of edited files
+            _curFileNames.Add(fileName);
+            _curBackgroundLoadingFileIdx++;
+            UpdateWindowTitle();
+            _bwThreadForPages.RunWorkerAsync();
+        }
+
+        private void AddPages_DoWork(object sender, DoWorkEventArgs e)
+        {
+            BackgroundWorker worker = sender as BackgroundWorker;
+            _pdfRasterizer = new PdfRasterizer(_curFileNames[_curBackgroundLoadingFileIdx], POINTS_PER_INCH);
+
+            for (int i = 0; i < _pdfRasterizer.NumPages(); i++)
+            {
+                if ((worker.CancellationPending == true))
+                {
+                    e.Cancel = true;
+                    break;
+                }
+
+                System.Drawing.Image pageImg = _pdfRasterizer.GetPageImage(i + 1);
+
+                this.Dispatcher.BeginInvoke((Action)delegate()
+                {
+                    BitmapImage bitmap = ConvertToBitmap(pageImg);
+                    PdfPageInfo pgInfo = new PdfPageInfo();
+                    pgInfo.PageNum = i + 1;
+                    pgInfo.FileIndex = _curBackgroundLoadingFileIdx;
+                    pgInfo.ThumbBitmap = bitmap;
+                    pgInfo.SplitAfter = false;
+                    pgInfo.DeletePage = false;
+                    pgInfo.PageRotation = 0;
+                    _pdfPageList.Add(pgInfo);
+                });
+                Thread.Sleep(50);
+            }
+        }
+
+        #endregion
+
+        #region Utility Functions
 
         private string GenOutFileName(string curFileName, int fileIdx)
         {
             string fileName = System.IO.Path.GetFileNameWithoutExtension(curFileName) + "_" + fileIdx.ToString() + System.IO.Path.GetExtension(curFileName);
             return System.IO.Path.Combine(System.IO.Path.GetDirectoryName(curFileName), fileName);
-        }
-
-        private void btnAddFile_Click(object sender, RoutedEventArgs e)
-        {
-            UpdateWindowTitle(true);
         }
 
         private void RobsPDFEditor_Closing(object sender, CancelEventArgs e)
@@ -530,13 +454,176 @@ namespace RobsPdfEditor
             if (_changesMade)
             {
                 // Ask the user if they are sure
-                MessageDialog.MsgDlgRslt rslt = MessageDialog.Show("Discard changes ?\nAre you sure?", "Yes", "No", "Cancel", null, this);
+                MessageDialog.MsgDlgRslt rslt = MessageDialog.Show("Discard changes?\nAre you sure?", "Yes", "No", "Cancel", null, this);
                 if (rslt != MessageDialog.MsgDlgRslt.RSLT_YES)
                     return true;
             }
             return false;
         }
 
+        private bool CheckIfThreadBusy(bool stopFirst=false, int waitSecs=3)
+        {
+            if (_bwThreadForPages.IsBusy)
+            {
+                if (stopFirst)
+                    _bwThreadForPages.CancelAsync();
+
+                for (int i = 0; i < waitSecs*10; i++)
+                {
+                    if (!_bwThreadForPages.IsBusy)
+                        break;
+                    Thread.Sleep(100);
+                }
+
+                // Tell the user to wait
+                if (_bwThreadForPages.IsBusy)
+                {
+                    MessageDialog.MsgDlgRslt rslt = MessageDialog.Show("Busy reading file, please try again in a mo ...", "OK", "", "", null, this);
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private int ExtractFileAndPageIdxs(object sender)
+        {
+            string tag = ((System.Windows.Controls.Image)sender).Tag.ToString();
+            return FindTagInPageList(tag);
+        }
+
+        private int FindTagInPageList(string tag)
+        {
+            int idxInPageList = _pdfPageList.IndexOf(_pdfPageList.Where(X => X.TagStr == tag).FirstOrDefault());
+            if ((idxInPageList < 0) || (idxInPageList >= _pdfPageList.Count))
+                return -1;
+            return idxInPageList;
+        }
+
+        private BitmapImage ConvertToBitmap(System.Drawing.Image img)
+        {
+            MemoryStream ms = new MemoryStream();
+            img.Save(ms, System.Drawing.Imaging.ImageFormat.Jpeg);
+            System.Windows.Media.Imaging.BitmapImage bImg = new System.Windows.Media.Imaging.BitmapImage();
+            bImg.BeginInit();
+            bImg.StreamSource = new MemoryStream(ms.ToArray());
+            bImg.EndInit();
+            return bImg;
+        }
+
+        private string GetElementTag(object sender)
+        {
+            System.Windows.Controls.Grid ctrl = sender as System.Windows.Controls.Grid;
+            if (ctrl == null || ctrl.Tag == null)
+                return "";
+            return (string)ctrl.Tag;
+        }
+
+        #endregion
+
+        #region PdfPageInfo Class
+
+        class PdfPageInfo : INotifyPropertyChanged
+        {
+            public event PropertyChangedEventHandler PropertyChanged;
+
+            private void NotifyPropertyChanged(string propertyName)
+            {
+                if (PropertyChanged != null)
+                {
+                    PropertyChanged(this, new PropertyChangedEventArgs(propertyName));
+                }
+            }
+
+            private BitmapImage _thumbnailBitmap;
+            public BitmapImage ThumbBitmap
+            {
+                get { return _thumbnailBitmap; }
+                set { _thumbnailBitmap = value; NotifyPropertyChanged("ThumbBitmap"); }
+            }
+            public double ThumbWidth
+            {
+                get { return _thumbnailBitmap.Width; }
+            }
+            public double ThumbHeight
+            {
+                get { return _thumbnailBitmap.Height; }
+            }
+
+            // Split line
+            private bool _splitAfter = false;
+            public bool SplitAfter
+            {
+                get { return _splitAfter; }
+                set { _splitAfter = value; NotifyPropertyChanged("SplitAfter"); NotifyPropertyChanged("SplitLineVisibility"); NotifyPropertyChanged("SplitIconImg"); }
+            }
+            public Visibility SplitLineVisibility
+            {
+                get { return _splitAfter ? Visibility.Visible : Visibility.Hidden; }
+            }
+            public BitmapImage SplitIconImg
+            {
+                get { return _splitAfter ? splitIconOn : splitIconOff; }
+            }
+
+            // Page delete
+            private bool _deletePage = false;
+            public bool DeletePage
+            {
+                get { return _deletePage; }
+                set { _deletePage = value; NotifyPropertyChanged("DeletePage"); NotifyPropertyChanged("PageDeleteVisibility"); NotifyPropertyChanged("DeleteIconImg"); }
+            }
+            public Visibility PageDeleteVisibility
+            {
+                get { return _deletePage ? Visibility.Visible : Visibility.Hidden; }
+            }
+            public BitmapImage DeleteIconImg
+            {
+                get { return _deletePage ? deleteIconOn : deleteIconOff; }
+            }
+
+            // Rotation
+            private double _pageRotation = 0;
+            public double PageRotation
+            {
+                get { return _pageRotation; }
+                set { _pageRotation = value; NotifyPropertyChanged("PageRotation"); }
+            }
+
+            // Page number, file index and tagstring
+            private int _pageNum;
+            public int PageNum
+            {
+                get { return _pageNum; }
+                set { _pageNum = value; NotifyPropertyChanged("PageNum"); NotifyPropertyChanged("PageNumStr"); NotifyPropertyChanged("TagStr"); }
+            }
+            private int _fileIdx = 0;
+            public int FileIndex
+            {
+                get { return _fileIdx; }
+                set { _fileIdx = value; NotifyPropertyChanged("FileIndex"); NotifyPropertyChanged("FileIdxStr"); NotifyPropertyChanged("TagStr"); NotifyPropertyChanged("PageNumStr"); }
+            }
+            public string TagStr
+            {
+                get { return _fileIdx.ToString() + "_" + _pageNum.ToString(); }
+            }
+            public string PageNumStr
+            {
+                get { return "Page " + _pageNum.ToString() + (_showFileNum ? (" of File " + (_fileIdx + 1).ToString()) : "");  }
+            }
+            public string FileIdxStr
+            {
+                get { return _fileIdx.ToString(); }
+            }
+
+            // Whether file number should be shown
+            private bool _showFileNum = false;
+            public bool ShowFileNum
+            {
+                set { _showFileNum = value; NotifyPropertyChanged("ShowFileNum"); NotifyPropertyChanged("PageNumStr"); }
+            }
+        }
+
+        #endregion
 
     }
 }

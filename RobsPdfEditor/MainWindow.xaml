@@ -18,56 +18,48 @@
             <Button x:Name="btnSaveFile" Content="Save" HorizontalAlignment="Left" Height="41" Margin="300,22,0,0" VerticalAlignment="Top" Width="89" Style="{DynamicResource SquareButtonStyle}" Click="btnSaveFile_Click" FontSize="16" />
             <Button x:Name="btnAddFile" Content="Add" HorizontalAlignment="Left" Height="41" Margin="156,22,0,0" VerticalAlignment="Top" Width="89" Style="{DynamicResource SquareButtonStyle}" Click="btnAddFile_Click" FontSize="16" />
         </Grid>
-        <ScrollViewer Grid.Row="1"  HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Hidden">
+        <ScrollViewer Grid.Row="1"  HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Hidden"
+                                xmlns:WpfExtensions="clr-namespace:WpfExtensions" 
+                                WpfExtensions:DragDropExtension.ScrollOnDragDrop="True">
             <ItemsControl x:Name="pageThumbs">
                 <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate>
-                        <!--<StackPanel Orientation="Horizontal">
-                            <StackPanel.Resources>
-                                <Style TargetType="{x:Type Grid}">
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding PageRotation}" Value="90">
-                                            <Setter Property="Width" Value="1000" />
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </StackPanel.Resources>
-                        </StackPanel>-->
                         <StackPanel Orientation="Horizontal">
-
                         </StackPanel>
                     </ItemsPanelTemplate>
                 </ItemsControl.ItemsPanel>
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
-                        <Grid Margin="10" Width="520">
+                        <Grid Width="540">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="60"/>
                                 <RowDefinition Height="500"/>
                                 <RowDefinition Height="40"/>
                             </Grid.RowDefinitions>
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="20"/>
+                                <ColumnDefinition Width="500"/>
+                                <ColumnDefinition Width="40"/>
                             </Grid.ColumnDefinitions>
-
-                            <!--<Button Tag="{Binding PageNumStr}">-->
-                            <Image x:Name="RotateACWIcon" Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="1"  VerticalAlignment="Center" Width="20" Tag="{Binding PageNumStr}" Source="res/appbar.transform.rotate.counterclockwise.gray.png" HorizontalAlignment="Center" Margin="0,0,150,0" MouseDown="RotateACWIcon_MouseDown" ></Image>
-                            <Image x:Name="RotateCWIcon" Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="1"  VerticalAlignment="Center" Width="20" Tag="{Binding PageNumStr}" Source="res/appbar.transform.rotate.clockwise.gray.png" HorizontalAlignment="Center" Margin="150,0,0,0" MouseDown="RotateCWIcon_MouseDown"></Image>
-                            <Image x:Name="DeleteIcon" Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="1" HorizontalAlignment="Center" VerticalAlignment="Center" Source="{Binding DeleteIconImg}" Width="20" Tag="{Binding PageNumStr}" MouseDown="DeleteIcon_MouseDown"></Image>
-                            <Image x:Name="SplitIcon" Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" Margin="0,0,-8,0" HorizontalAlignment="Right" VerticalAlignment="Center" Source="{Binding SplitIconImg}" Width="20" Visibility="{Binding SplitIconVisibility}" Tag="{Binding PageNumStr}" MouseDown="SplitIcon_MouseDown"></Image>
-                            <Image x:Name="PageImage" Grid.Row="1" Source="{Binding ThumbBitmap}" Tag="{Binding PageNumStr}" Stretch="Uniform" MouseMove="PageImage_MouseMove" AllowDrop="True" DragEnter="PageImage_DragEnter" DragLeave="PageImage_DragLeave" DragOver="PageImage_DragOver" Drop="PageImage_Drop" RenderTransformOrigin="0.5,0.5" Width="500" Height="500" >
-                                <Image.RenderTransform>
-                                    <TransformGroup>
-                                        <RotateTransform Angle="{Binding PageRotation}"/>
-                                    </TransformGroup>
-                                </Image.RenderTransform>
-                            </Image>
+                            <Image x:Name="RotateACWIcon" Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="1"  VerticalAlignment="Center" Width="20" Tag="{Binding TagStr}" Source="res/appbar.transform.rotate.counterclockwise.gray.png" HorizontalAlignment="Center" Margin="0,0,150,0" MouseDown="RotateACWIcon_MouseDown" ></Image>
+                            <Image x:Name="RotateCWIcon" Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="1"  VerticalAlignment="Center" Width="20" Tag="{Binding TagStr}" Source="res/appbar.transform.rotate.clockwise.gray.png" HorizontalAlignment="Center" Margin="150,0,0,0" MouseDown="RotateCWIcon_MouseDown"></Image>
+                            <Image x:Name="DeleteIcon" Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="1" HorizontalAlignment="Center" VerticalAlignment="Center" Source="{Binding DeleteIconImg}" Width="20" Tag="{Binding TagStr}" MouseDown="DeleteIcon_MouseDown"></Image>
+                            <Grid Background="LightGray" Grid.Row="1" Tag="{Binding TagStr}" MouseMove="PageImage_MouseMove" AllowDrop="True" DragEnter="PageImage_DragEnter" DragLeave="PageImage_DragLeave" DragOver="PageImage_DragOver" Drop="PageImage_Drop" Width="500" Height="500" >
+                                <Image x:Name="PageImage" Source="{Binding ThumbBitmap}" Tag="{Binding TagStr}" Stretch="Uniform" RenderTransformOrigin="0.5,0.5" Width="500" Height="500" >
+                                    <Image.RenderTransform>
+                                        <TransformGroup>
+                                            <RotateTransform Angle="{Binding PageRotation}"/>
+                                        </TransformGroup>
+                                    </Image.RenderTransform>
+                                </Image>
+                            </Grid>
                             <Grid Grid.Row="1" Grid.Column="0" Width="{Binding ThumbWidth}" Height="{Binding ThumbHeight}" Opacity=".75">
                                 <Line x:Name="DeleteStrike1" Visibility="{Binding PageDeleteVisibility}" X1="0" Y1="0" X2="200" Y2="200" Stroke="#FFDC0032" StrokeThickness="7" HorizontalAlignment="Center" VerticalAlignment="Center"></Line>
                                 <Line x:Name="DeleteStrike2" Visibility="{Binding PageDeleteVisibility}" X1="0" Y1="200" X2="200" Y2="0" Stroke="#FFDC0032" StrokeThickness="7" HorizontalAlignment="Center" VerticalAlignment="Center"></Line>
                             </Grid>
-                            <Rectangle x:Name="SplitLine" Grid.Row="1" Grid.Column="1" Grid.RowSpan="2" HorizontalAlignment="Right" Width="3" StrokeThickness="0" Fill="#FFDC0032" Visibility="{Binding SplitLineVisibility}"/>
+                            <Image x:Name="SplitIcon" Grid.Row="0" Grid.Column="1" Grid.ColumnSpan="1" Margin="0,0,-8,0" HorizontalAlignment="Center" VerticalAlignment="Center" Source="{Binding SplitIconImg}" Width="20" Tag="{Binding TagStr}" MouseDown="SplitIcon_MouseDown"></Image>
+                            <Grid Background="LightGray" Grid.Row="1" Grid.Column="1" Grid.RowSpan="2" Tag="{Binding TagStr}" AllowDrop="True">
+                                <Rectangle x:Name="SplitLine" HorizontalAlignment="Center" Width="3" StrokeThickness="0" Fill="#FFDC0032" Visibility="{Binding SplitLineVisibility}"/>
+                            </Grid>
                             <Label Grid.Row="2" Grid.Column="0" Content="{Binding PageNumStr}" Foreground="White" Background="#FF354B53"  FontWeight="SemiBold" Opacity="0.80"></Label>
                         </Grid>
                     </DataTemplate>

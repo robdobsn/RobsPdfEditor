@@ -37,7 +37,9 @@ namespace RobsPdfEditor
         const int POINTS_PER_INCH = 50;
         private PdfRasterizer _pdfRasterizer;
         private BackgroundWorker _bwThreadForPages;
-        private string _curFileName;
+        private string _curFileName = "";
+        private string _windowTitle = "Rob's PDF Editor";
+        private bool _changesMade = false;
 
         public MainWindow()
         {
@@ -49,11 +51,20 @@ namespace RobsPdfEditor
             deleteIconOff = new BitmapImage(new Uri("res/appbar.delete.gray.png", UriKind.Relative));
             deleteIconOn = new BitmapImage(new Uri("res/appbar.delete.red.png", UriKind.Relative));
 
+            RobsPDFEditor.Title = _windowTitle;
+
             // Page filler thread
             _bwThreadForPages = new BackgroundWorker();
             _bwThreadForPages.WorkerSupportsCancellation = true;
             _bwThreadForPages.WorkerReportsProgress = true;
             _bwThreadForPages.DoWork += new DoWorkEventHandler(AddPages_DoWork);
+        }
+
+        private void UpdateWindowTitle(bool changesMade = false)
+        {
+            if (changesMade)
+                _changesMade = true;
+            RobsPDFEditor.Title = _windowTitle + (_curFileName == "" ? "" : (" - " + System.IO.Path.GetFileName(_curFileName) + (_changesMade ? " *" : "")));
         }
 
         public void OpenFile(string fileName)
@@ -72,7 +83,8 @@ namespace RobsPdfEditor
 
             _pdfPageList.Clear();
             _curFileName = fileName;
-            lblInputFileName.Content = System.IO.Path.GetFileName(fileName);
+            _changesMade = false;
+            UpdateWindowTitle();
             _bwThreadForPages.RunWorkerAsync();
         }
 
@@ -245,6 +257,7 @@ namespace RobsPdfEditor
                     _pdfPageList[pageIdx].SplitIconImg = splitIconOff;
                 }
             }
+            UpdateWindowTitle(true);
         }
 
         private void PageImage_MouseMove(object sender, MouseEventArgs e)
@@ -315,6 +328,7 @@ namespace RobsPdfEditor
                     // Update the list
                     _pdfPageList.Move(fromPageIdx, toPageIdx);
                 }
+                UpdateWindowTitle(true);
             }
         }
 
@@ -342,6 +356,7 @@ namespace RobsPdfEditor
                     _pdfPageList[pageIdx].PageDeleteVisibility = System.Windows.Visibility.Hidden;
                 }
             }
+            UpdateWindowTitle(true);
         }
 
         private void RotateACWIcon_MouseDown(object sender, MouseButtonEventArgs e)
@@ -372,10 +387,14 @@ namespace RobsPdfEditor
                 reqdRotation = reqdRotation % 360;
                 _pdfPageList[pageIdx].PageRotation = reqdRotation;
             }
+            UpdateWindowTitle(true);
         }
 
         private void btnOpenFile_Click(object sender, RoutedEventArgs e)
         {
+            if (CancelIfChangesMade())
+                return;
+
             CommonOpenFileDialog cofd = new CommonOpenFileDialog("Select PDF file");
             cofd.Multiselect = false;
             cofd.InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
@@ -407,7 +426,8 @@ namespace RobsPdfEditor
                         string outFileName = GenOutFileName(_curFileName, pdfOutFileIdx++);
                         if (File.Exists(outFileName))
                         {
-                            MessageBox.Show("Output File Exists", "Problem Saving", MessageBoxButton.OK, MessageBoxImage.Exclamation);
+                            // Ask the user if they are sure
+                            MessageDialog.Show("Cannot save as output file exists already", "", "", "OK", null, this);
                             return;
                         }
 
@@ -485,6 +505,8 @@ namespace RobsPdfEditor
                     }
                 }
             }
+            _changesMade = false;
+            UpdateWindowTitle();
         }
 
         private string GenOutFileName(string curFileName, int fileIdx)
@@ -492,6 +514,30 @@ namespace RobsPdfEditor
             string fileName = System.IO.Path.GetFileNameWithoutExtension(curFileName) + "_" + fileIdx.ToString() + System.IO.Path.GetExtension(curFileName);
             return System.IO.Path.Combine(System.IO.Path.GetDirectoryName(curFileName), fileName);
         }
+
+        private void btnAddFile_Click(object sender, RoutedEventArgs e)
+        {
+            UpdateWindowTitle(true);
+        }
+
+        private void RobsPDFEditor_Closing(object sender, CancelEventArgs e)
+        {
+            e.Cancel = CancelIfChangesMade();
+        }
+
+        private bool CancelIfChangesMade()
+        {
+            if (_changesMade)
+            {
+                // Ask the user if they are sure
+                MessageDialog.MsgDlgRslt rslt = MessageDialog.Show("Discard changes ?\nAre you sure?", "Yes", "No", "Cancel", null, this);
+                if (rslt != MessageDialog.MsgDlgRslt.RSLT_YES)
+                    return true;
+            }
+            return false;
+        }
+
+
     }
 }
 

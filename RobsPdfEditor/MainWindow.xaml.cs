@@ -395,37 +395,33 @@ namespace RobsPdfEditor
                 using (PdfReader pdfReader = new PdfReader(inPDFStream))
                 {
                     int pdfOutFileIdx = 0;
-                    int pdfPageListIdx = 0;
 
                     // Loop through PDFs to be created
-                    while (pdfPageListIdx < _pdfPageList.Count)
+                    for (int pdfPageListIdx = 0; pdfPageListIdx < _pdfPageList.Count; pdfPageListIdx++)
                     {
                         // Skip deleted pages
                         if (_pdfPageList[pdfPageListIdx].PageDeleteVisibility == System.Windows.Visibility.Visible)
-                        {
-                            pdfPageListIdx++;
                             continue;
-                        }
 
                         // Create output PDF
-                        string outFileName = GenOutFileName(_curFileName, pdfOutFileIdx);
+                        string outFileName = GenOutFileName(_curFileName, pdfOutFileIdx++);
                         if (File.Exists(outFileName))
                         {
                             MessageBox.Show("Output File Exists", "Problem Saving", MessageBoxButton.OK, MessageBoxImage.Exclamation);
                             return;
                         }
+
                         using (FileStream fs = new FileStream(outFileName, FileMode.Create, FileAccess.Write, FileShare.None))
                         {
-                            using (Document doc = new Document(pdfReader.GetPageSizeWithRotation(1)))
+                            using (Document inDoc = new Document(pdfReader.GetPageSizeWithRotation(1)))
                             {
-                                // Duplicate the pages required
-                                using (PdfCopy copy = new PdfCopy(doc, fs))
+                                using (PdfWriter outputWriter = PdfWriter.GetInstance(inDoc, fs))
                                 {
-                                    doc.Open();
-                                    copy.SetLinearPageMode();
+                                    // Open input
+                                    inDoc.Open();
 
-                                    // Go through pages in this PDF
-                                    while (pdfPageListIdx < _pdfPageList.Count)
+                                    // Go through pages in input PDF
+                                    for (; pdfPageListIdx < _pdfPageList.Count; pdfPageListIdx++)
                                     {
                                         // Skip deleted pages
                                         if (_pdfPageList[pdfPageListIdx].PageDeleteVisibility != System.Windows.Visibility.Visible)
@@ -433,40 +429,59 @@ namespace RobsPdfEditor
                                             // Add the page
                                             int pageNum = 0;
                                             Int32.TryParse(_pdfPageList[pdfPageListIdx].PageNumStr, out pageNum);
-                                            PdfImportedPage importedPage = copy.GetImportedPage(pdfReader, pageNum);
-                                            //importedPage.Rotation = importedPage.Rotation + (int)_pdfPageList[pdfPageListIdx].PageRotation;
-                                            copy.AddPage(importedPage);
 
-//                                            // Rotate
-//                                            PdfDictionary pageDict = copy.PageDictEntries.Get(;
-//                                            int desiredRotation = (int)_pdfPageList[pdfPageListIdx].PageRotation;
-//                                            PdfNumber rotation = pageDict.getAsNumber(PdfName.ROTATE);
-//if (rotation != null) {
-//  desiredRot += rotation.intValue();
-//  desiredRot %= 360; // must be 0, 90, 180, or 270
-//}
-//pageDict.put(PdfName.ROTATE, new PdfNumber(desiredRot);
+                                            // Get rotation
+                                            int pageRotation = pdfReader.GetPageRotation(pageNum) + (int)_pdfPageList[pdfPageListIdx].PageRotation;
+                                            if (pageRotation < 0)
+                                                pageRotation = pageRotation + 360;
+                                            pageRotation = pageRotation % 360;
 
+                                            // Create a new destination page of the right dimensions
+                                            iTextSharp.text.Rectangle pageSize = pdfReader.GetPageSizeWithRotation(pageNum);
+                                            if (pageRotation == 90 || pageRotation == 270)
+                                                pageSize = new iTextSharp.text.Rectangle(pageSize.Height, pageSize.Width);
+                                            inDoc.SetPageSize(pageSize);
+                                            inDoc.NewPage();
+
+                                            // Get original page
+                                            PdfImportedPage importedPage = outputWriter.GetImportedPage(pdfReader, pageNum);
+
+                                            // Handle rotation
+
+                                            var pageWidth = pdfReader.GetPageSizeWithRotation(pageNum).Width;
+                                            var pageHeight = pdfReader.GetPageSizeWithRotation(pageNum).Height;
+                                            switch (pageRotation)
+                                            {
+                                                case 0:
+                                                default:
+                                                    outputWriter.DirectContent.AddTemplate(importedPage, 1f, 0, 0, 1f, 0, 0);
+                                                    break;
+
+                                                case 90:
+                                                    outputWriter.DirectContent.AddTemplate(importedPage, 0, -1f, 1f, 0, 0, pageWidth);
+                                                    break;
+
+                                                case 180:
+                                                    outputWriter.DirectContent.AddTemplate(importedPage, -1f, 0, 0, -1f, pageWidth, pageHeight);
+                                                    break;
+
+                                                case 270:
+                                                    outputWriter.DirectContent.AddTemplate(importedPage, 0, 1f, -1f, 0, pageHeight, 0);
+                                                    break;
+                                            }
                                         }
 
                                         // Check if this is the last page in this PDF
                                         if (_pdfPageList[pdfPageListIdx].SplitLineVisibility == System.Windows.Visibility.Visible)
-                                        {
-                                            pdfPageListIdx++;
                                             break;
-                                        }
-
-                                        // Next in list
-                                        pdfPageListIdx++;
                                     }
 
-                                    doc.Close();
+                                    // Close document
+                                    inDoc.Close();
+
                                 }
                             }
                         }
-
-                        // Next file
-                        pdfOutFileIdx++;
                     }
                 }
             }

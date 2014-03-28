@@ -433,11 +433,24 @@ namespace RobsPdfEditor
                                             // Add the page
                                             int pageNum = 0;
                                             Int32.TryParse(_pdfPageList[pdfPageListIdx].PageNumStr, out pageNum);
-                                            copy.AddPage(copy.GetImportedPage(pdfReader, pageNum));
+                                            PdfImportedPage importedPage = copy.GetImportedPage(pdfReader, pageNum);
+                                            //importedPage.Rotation = importedPage.Rotation + (int)_pdfPageList[pdfPageListIdx].PageRotation;
+                                            copy.AddPage(importedPage);
+
+//                                            // Rotate
+//                                            PdfDictionary pageDict = copy.PageDictEntries.Get(;
+//                                            int desiredRotation = (int)_pdfPageList[pdfPageListIdx].PageRotation;
+//                                            PdfNumber rotation = pageDict.getAsNumber(PdfName.ROTATE);
+//if (rotation != null) {
+//  desiredRot += rotation.intValue();
+//  desiredRot %= 360; // must be 0, 90, 180, or 270
+//}
+//pageDict.put(PdfName.ROTATE, new PdfNumber(desiredRot);
+
                                         }
 
                                         // Check if this is the last page in this PDF
-                                        if (_pdfPageList[pdfPageListIdx].SplitIconVisibility != System.Windows.Visibility.Hidden)
+                                        if (_pdfPageList[pdfPageListIdx].SplitLineVisibility == System.Windows.Visibility.Visible)
                                         {
                                             pdfPageListIdx++;
                                             break;

@@ -63,13 +63,6 @@ namespace RobsPdfEditor
             _bwThreadForPages.DoWork += new DoWorkEventHandler(AddPages_DoWork);
         }
 
-        private void UpdateWindowTitle(bool changesMade = false)
-        {
-            if (changesMade)
-                _changesMade = true;
-            RobsPDFEditor.Title = _windowTitle + ((_curFileNames.Count > 0) ? "" : (" - " + System.IO.Path.GetFileName(_curFileNames[0]) + (_changesMade ? " *" : "")));
-        }
-
         #region Drag and Drop Handling
 
         private void PageImage_MouseMove(object sender, MouseEventArgs e)
@@ -77,7 +70,7 @@ namespace RobsPdfEditor
             string elemTag = GetElementTag(sender);
             if (elemTag != "" && e.LeftButton == MouseButtonState.Pressed)
             {
-                DragDrop.DoDragDrop((StackPanel)sender, elemTag, DragDropEffects.Move);
+                DragDrop.DoDragDrop((Grid)sender, elemTag, DragDropEffects.Move);
             }
         }
 
@@ -140,6 +133,7 @@ namespace RobsPdfEditor
                     // Update the list
                     _pdfPageList.Move(fromPageIdx, toPageIdx);
                 }
+                RewritePageNumbers();
                 UpdateWindowTitle(true);
             }
         }
@@ -160,6 +154,7 @@ namespace RobsPdfEditor
         {
             if ((pageIdx >= 0) && (pageIdx < _pdfPageList.Count))
                 _pdfPageList[pageIdx].SplitAfter = !_pdfPageList[pageIdx].SplitAfter;
+            RewritePageNumbers();
             UpdateWindowTitle(true);
         }
 
@@ -175,6 +170,7 @@ namespace RobsPdfEditor
         {
             if ((pageIdx >= 0) && (pageIdx < _pdfPageList.Count))
                 _pdfPageList[pageIdx].DeletePage = !_pdfPageList[pageIdx].DeletePage;
+            RewritePageNumbers();
             UpdateWindowTitle(true);
         }
 
@@ -209,7 +205,7 @@ namespace RobsPdfEditor
 
         #endregion
 
-        #region File Open/Add/Save Handling
+        #region Button File Open/Add/Save Handling
 
         private void btnOpenFile_Click(object sender, RoutedEventArgs e)
         {
@@ -428,15 +424,24 @@ namespace RobsPdfEditor
                     pgInfo.SplitAfter = false;
                     pgInfo.DeletePage = false;
                     pgInfo.PageRotation = 0;
+                    pgInfo.ShowFileNum = (_curBackgroundLoadingFileIdx > 0);
                     _pdfPageList.Add(pgInfo);
                 });
                 Thread.Sleep(50);
             }
+            RewritePageNumbers();
         }
 
         #endregion
 
         #region Utility Functions
+
+        private void UpdateWindowTitle(bool changesMade = false)
+        {
+            if (changesMade)
+                _changesMade = true;
+            RobsPDFEditor.Title = _windowTitle + ((_curFileNames.Count > 0) ? "" : (" - " + System.IO.Path.GetFileName(_curFileNames[0]) + (_changesMade ? " *" : "")));
+        }
 
         private string GenOutFileName(string curFileName, int fileIdx)
         {
@@ -516,6 +521,15 @@ namespace RobsPdfEditor
             if (ctrl == null || ctrl.Tag == null)
                 return "";
             return (string)ctrl.Tag;
+        }
+
+        private void RewritePageNumbers()
+        {
+            for (int i = 0; i < _pdfPageList.Count; i++)
+            {
+                if (_pdfPageList[i].NewDocPageNum != i + 1)
+                    _pdfPageList[i].NewDocPageNum = i + 1;
+            }
         }
 
         #endregion
@@ -620,6 +634,18 @@ namespace RobsPdfEditor
             public bool ShowFileNum
             {
                 set { _showFileNum = value; NotifyPropertyChanged("ShowFileNum"); NotifyPropertyChanged("PageNumStr"); }
+            }
+
+            // Position in the new document
+            private int _newDocPageNum = 1;
+            public int NewDocPageNum
+            {
+                get { return _newDocPageNum;  }
+                set { _newDocPageNum = value; NotifyPropertyChanged("NewDocPageNum"); NotifyPropertyChanged("NewDocPageInfoStr"); }
+            }
+            public string NewDocPageInfoStr
+            {
+                get { return _newDocPageNum.ToString(); }
             }
         }
 

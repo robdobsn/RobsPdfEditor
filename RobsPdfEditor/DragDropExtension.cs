@@ -81,7 +81,7 @@ namespace WpfExtensions
                 return;
             }
  
-            double tolerance = 200;
+            double tolerance = 80;
             double horizontalPos = e.GetPosition(container).X;
             double offset = 20;
 

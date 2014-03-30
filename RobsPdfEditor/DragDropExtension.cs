@@ -8,12 +8,12 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 
-namespace WpfExtensions
+namespace RobsPdfEditor
 {
     public static class DragDropExtension
     {
         #region ScrollOnDragDropProperty
- 
+
         public static readonly DependencyProperty ScrollOnDragDropProperty =
             DependencyProperty.RegisterAttached("ScrollOnDragDrop",
                 typeof(bool),

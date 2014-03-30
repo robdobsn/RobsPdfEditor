@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   version="1.1"
+   width="76"
+   height="76"
+   viewBox="0 0 76.00 76.00"
+   enable-background="new 0 0 76.00 76.00"
+   xml:space="preserve"
+   id="svg2"
+   inkscape:version="0.48.4 r9939"
+   sodipodi:docname="appbar.transform.rotate.clockwise.gray.svg"
+   inkscape:export-filename="\\MACALLAN\Main\RobDev\Projects\HomeAutomation\ScanningAndFiling\ScanMonitor\ScanMonitorApp\ScanMonitorApp\res\appbar.transform.rotate.clockwise.gray.png"
+   inkscape:export-xdpi="180"
+   inkscape:export-ydpi="180"><metadata
+   id="metadata10"><rdf:RDF><cc:Work
+       rdf:about=""><dc:format>image/svg+xml</dc:format><dc:type
+         rdf:resource="http://purl.org/dc/dcmitype/StillImage" /><dc:title></dc:title></cc:Work></rdf:RDF></metadata><defs
+   id="defs8" /><sodipodi:namedview
+   pagecolor="#ffffff"
+   bordercolor="#666666"
+   borderopacity="1"
+   objecttolerance="10"
+   gridtolerance="10"
+   guidetolerance="10"
+   inkscape:pageopacity="0"
+   inkscape:pageshadow="2"
+   inkscape:window-width="1460"
+   inkscape:window-height="914"
+   id="namedview6"
+   showgrid="false"
+   inkscape:zoom="4.3915053"
+   inkscape:cx="24.114173"
+   inkscape:cy="21.771746"
+   inkscape:window-x="310"
+   inkscape:window-y="213"
+   inkscape:window-maximized="0"
+   inkscape:current-layer="svg2" />
+	
+<path
+   id="path4268"
+   style="fill:#868686;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;fill-opacity:1"
+   d="m 38.045035,25.003616 c 3.281955,-0.0036 6.608946,1.265588 9.147353,3.803996 5.076814,5.076815 5.076815,13.307962 0,18.384776 C 44.653946,49.730831 41.326937,51.000017 38,51.000017 L 38,43.656854 27.393398,54.263456 38,64.870058 38,56.999959 c 4.862561,7.1e-5 9.725052,-1.854953 13.435029,-5.56493 7.419954,-7.419954 7.419954,-19.450104 0,-26.870058 -3.709977,-3.709977 -8.572503,-5.564966 -13.389994,-5.560294 z"
+   inkscape:connector-curvature="0"
+   sodipodi:nodetypes="csscccccsscc" /><text
+   xml:space="preserve"
+   style="font-size:10px;font-style:normal;font-weight:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#868686;fill-opacity:1;stroke:none;font-family:'Modern No. 20';-inkscape-font-specification:'Modern No. 20'"
+   x="19.127838"
+   y="43.437134"
+   id="text4280"
+   sodipodi:linespacing="125%"><tspan
+     sodipodi:role="line"
+     id="tspan4282"
+     x="19.127838"
+     y="43.437134"
+     style="font-size:24px;font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-family:Aharoni;-inkscape-font-specification:Aharoni Bold;fill:#868686;fill-opacity:1">180</tspan></text>
+</svg>

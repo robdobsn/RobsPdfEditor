@@ -148,6 +148,11 @@
     <Resource Include="res\appbar.transform.rotate.clockwise.gray.png" />
     <Resource Include="res\appbar.transform.rotate.counterclockwise.gray.png" />
   </ItemGroup>
+  <ItemGroup>
+    <Resource Include="res\appbar.transform.rotate.180.gray.png" />
+    <Resource Include="res\appbar.transform.rotate.90.gray.png" />
+    <Resource Include="res\appbar.transform.rotate.minus90.gray.png" />
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.

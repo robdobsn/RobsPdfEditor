@@ -190,6 +190,14 @@ namespace RobsPdfEditor
             RotatePage(pageIdx, 90);
         }
 
+        private void Rotate180Icon_MouseDown(object sender, MouseButtonEventArgs e)
+        {
+            int pageIdx = ExtractFileAndPageIdxs(sender);
+            if (pageIdx < 0)
+                return;
+            RotatePage(pageIdx, 180);
+        }
+
         private void RotatePage(int pageIdx, double angle)
         {
             if ((pageIdx >= 0) && (pageIdx < _pdfPageList.Count))
@@ -201,6 +209,11 @@ namespace RobsPdfEditor
                 _pdfPageList[pageIdx].PageRotation = reqdRotation;
             }
             UpdateWindowTitle(true);
+        }
+
+        private void PdfListViewer_MouseWheel(object sender, MouseWheelEventArgs e)
+        {
+            PdfListViewer.ScrollToHorizontalOffset(PdfListViewer.HorizontalOffset + e.Delta);
         }
 
         #endregion
@@ -404,6 +417,10 @@ namespace RobsPdfEditor
             BackgroundWorker worker = sender as BackgroundWorker;
             _pdfRasterizer = new PdfRasterizer(_curFileNames[_curBackgroundLoadingFileIdx], POINTS_PER_INCH);
 
+            int startNewPageNum = 1;
+            int startNewFileNum = 1;
+            GetFileAndPageOfLastOutDoc(out startNewFileNum, out startNewPageNum);
+
             for (int i = 0; i < _pdfRasterizer.NumPages(); i++)
             {
                 if ((worker.CancellationPending == true))
@@ -425,11 +442,12 @@ namespace RobsPdfEditor
                     pgInfo.DeletePage = false;
                     pgInfo.PageRotation = 0;
                     pgInfo.ShowFileNum = (_curBackgroundLoadingFileIdx > 0);
+                    pgInfo.NewDocPageNum = i + startNewPageNum;
+                    pgInfo.NewDocFileNum = startNewFileNum;
                     _pdfPageList.Add(pgInfo);
                 });
                 Thread.Sleep(50);
             }
-            RewritePageNumbers();
         }
 
         #endregion
@@ -525,10 +543,32 @@ namespace RobsPdfEditor
 
         private void RewritePageNumbers()
         {
-            for (int i = 0; i < _pdfPageList.Count; i++)
+            int fileNum = 1;
+            int pageNum = 1;
+            GetFileAndPageOfLastOutDoc(out fileNum, out pageNum, true);
+        }
+
+        private void GetFileAndPageOfLastOutDoc(out int fileNum, out int pageNum, bool rewrite = false)
+        {
+            fileNum = 1;
+            pageNum = 1;
+            foreach (PdfPageInfo ppi in _pdfPageList)
             {
-                if (_pdfPageList[i].NewDocPageNum != i + 1)
-                    _pdfPageList[i].NewDocPageNum = i + 1;
+                if (rewrite)
+                {
+                    if (ppi.NewDocPageNum != pageNum)
+                        ppi.NewDocPageNum = pageNum;
+                    if (ppi.NewDocFileNum != fileNum)
+                        ppi.NewDocFileNum = fileNum;
+                }
+                if (ppi.DeletePage)
+                    continue;
+                pageNum++;
+                if (ppi.SplitAfter)
+                {
+                    fileNum++;
+                    pageNum = 1;
+                }
             }
         }
 
@@ -568,7 +608,7 @@ namespace RobsPdfEditor
             public bool SplitAfter
             {
                 get { return _splitAfter; }
-                set { _splitAfter = value; NotifyPropertyChanged("SplitAfter"); NotifyPropertyChanged("SplitLineVisibility"); NotifyPropertyChanged("SplitIconImg"); }
+                set { _splitAfter = value; NotifyPropertyChanged("SplitAfter"); NotifyPropertyChanged("SplitLineVisibility"); NotifyPropertyChanged("SplitIconImg"); NotifyPropertyChanged("NewDocPageInfoStr"); }
             }
             public Visibility SplitLineVisibility
             {
@@ -584,7 +624,7 @@ namespace RobsPdfEditor
             public bool DeletePage
             {
                 get { return _deletePage; }
-                set { _deletePage = value; NotifyPropertyChanged("DeletePage"); NotifyPropertyChanged("PageDeleteVisibility"); NotifyPropertyChanged("DeleteIconImg"); }
+                set { _deletePage = value; NotifyPropertyChanged("DeletePage"); NotifyPropertyChanged("PageDeleteVisibility"); NotifyPropertyChanged("DeleteIconImg"); NotifyPropertyChanged("NewDocPageInfoStr"); }
             }
             public Visibility PageDeleteVisibility
             {
@@ -622,7 +662,7 @@ namespace RobsPdfEditor
             }
             public string PageNumStr
             {
-                get { return "Page " + _pageNum.ToString() + (_showFileNum ? (" of File " + (_fileIdx + 1).ToString()) : "");  }
+                get { return "Original Page " + _pageNum.ToString() + (_showFileNum ? (" of File " + (_fileIdx + 1).ToString()) : "");  }
             }
             public string FileIdxStr
             {
@@ -643,13 +683,25 @@ namespace RobsPdfEditor
                 get { return _newDocPageNum;  }
                 set { _newDocPageNum = value; NotifyPropertyChanged("NewDocPageNum"); NotifyPropertyChanged("NewDocPageInfoStr"); }
             }
+            private int _newDocFileNum = 0;
+            public int NewDocFileNum
+            {
+                get { return _newDocFileNum; }
+                set { _newDocFileNum = value; NotifyPropertyChanged("NewDocFileNum"); NotifyPropertyChanged("NewDocPageInfoStr"); }
+            }
             public string NewDocPageInfoStr
             {
-                get { return _newDocPageNum.ToString(); }
+                get 
+                {
+                    if (DeletePage)
+                        return "Deleted";
+                    return "New Page " + _newDocPageNum.ToString() + " in File " + _newDocFileNum.ToString(); 
+                }
             }
         }
 
         #endregion
+
 
     }
 }

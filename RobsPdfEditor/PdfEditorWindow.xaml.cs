@@ -25,9 +25,9 @@ using System.Windows.Shapes;
 namespace RobsPdfEditor
 {
     /// <summary>
-    /// Interaction logic for MainWindow.xaml
+    /// Interaction logic for PdfEditorWindow.xaml
     /// </summary>
-    public partial class MainWindow
+    public partial class PdfEditorWindow
     {
         private static Logger logger = LogManager.GetCurrentClassLogger();
         private ObservableCollection<PdfPageInfo> _pdfPageList = new ObservableCollection<PdfPageInfo>();
@@ -43,8 +43,11 @@ namespace RobsPdfEditor
         private int _curBackgroundLoadingFileIdx = 0;
         private string _windowTitle = "Rob's PDF Editor";
         private bool _changesMade = false;
+        private bool _bRunningEmbedded = false;
+        public delegate void SaveCompleteCallback(string originalFileName, List<string> fileNamesSaved);
+        private SaveCompleteCallback _saveCompleteCallback;
 
-        public MainWindow()
+        public PdfEditorWindow()
         {
             InitializeComponent();
             pageThumbs.ItemsSource = _pdfPageList;
@@ -63,6 +66,15 @@ namespace RobsPdfEditor
             _bwThreadForPages.DoWork += new DoWorkEventHandler(AddPages_DoWork);
             _bwThreadForPages.ProgressChanged += new ProgressChangedEventHandler(AddPages_ProgressChanged);
             _bwThreadForPages.RunWorkerCompleted += new RunWorkerCompletedEventHandler(AddPages_Completed);
+        }
+
+        public void OpenEmbeddedPdfEditor(string fileName, SaveCompleteCallback saveCompleteCallback)
+        {
+            btnOpenFile.IsEnabled = false;
+            btnReplaceFile.Visibility = System.Windows.Visibility.Hidden;
+            _bRunningEmbedded = true;
+            _saveCompleteCallback = saveCompleteCallback;
+            OpenFile(fileName);
         }
 
         #region Drag and Drop Handling
@@ -294,6 +306,7 @@ namespace RobsPdfEditor
         
         private void btnSaveFile_Click(object sender, RoutedEventArgs e)
         {
+            // Check not busy
             if (CheckIfThreadBusy())
                 return;
 
@@ -307,24 +320,38 @@ namespace RobsPdfEditor
             GetFileAndPageOfLastOutDoc(out fileNum, out pageNum, out pageTotal, true);
 
             // Generate suggested file names
-            List<string> suggestedNames = new List<string>();
+            List<string> outputFileNames = new List<string>();
             for (int fileIdx = 0; fileIdx < fileNum; fileIdx++)
             {
                 string outFileName = GenOutFileName(_curFileNames[0], fileIdx);
-                suggestedNames.Add(outFileName);
+                outputFileNames.Add(outFileName);
             }
 
-            // Display save-as dialog
-            OutputFilenames outFileNamesForm = new OutputFilenames(suggestedNames);
-            outFileNamesForm.ShowDialog();
-            if (!outFileNamesForm.okClicked)
-                return;
+            // Display save-as dialog (unless running embedded)
+            if (_bRunningEmbedded)
+            {
+                OutputFilenames outFileNamesForm = new OutputFilenames(outputFileNames);
+                outFileNamesForm.ShowDialog();
+                if (!outFileNamesForm.okClicked)
+                    return;
+                outputFileNames = outFileNamesForm.GetOutputFileNames();
+            }
 
             bool bSaveOk = false;
             using (new WaitCursor())
-                bSaveOk = SaveFiles(outFileNamesForm.GetOutputFileNames());
+                bSaveOk = SaveFiles(outputFileNames);
             if (!bSaveOk)
+            {
                 MessageDialog.Show("Problem saving files, check the error log", "Problem", "", "Ok", null, this);
+                return;
+            }
+
+            // If running embedded then call the callback to say work is done
+            if (_bRunningEmbedded)
+            {
+                _saveCompleteCallback(_curFileNames[0], outputFileNames);
+                Close();
+            }
         }
 
         private void btnReplaceFile_Click(object sender, RoutedEventArgs e)
@@ -336,11 +363,13 @@ namespace RobsPdfEditor
             if (_curFileNames.Count < 1)
                 return;
 
-            // Check there is only one file
+            // Get info on output files
             int fileNum = 1;
             int pageNum = 1;
             int pageTotal = 0;
             GetFileAndPageOfLastOutDoc(out fileNum, out pageNum, out pageTotal, true);
+
+            // Check there is only one file
             if ((fileNum != 1) || (pageTotal == 0))
                 return;
 
@@ -660,7 +689,7 @@ namespace RobsPdfEditor
             // Button enables
             btnAddFile.IsEnabled = (_curFileNames.Count > 0) & !isBusy;
             btnSaveFile.IsEnabled = (numOutFiles > 0) & !isBusy;
-            btnReplaceFile.IsEnabled = (numOutFiles == 1) & !isBusy;
+            btnReplaceFile.IsEnabled = (numOutFiles == 1) & !isBusy & !_bRunningEmbedded;
             btnRotateAllACWFile.IsEnabled = (_pdfPageList.Count > 0) & !isBusy;
             btnRotateAllCWFile.IsEnabled = (_pdfPageList.Count > 0) & !isBusy;
         }

@@ -61,6 +61,8 @@ namespace RobsPdfEditor
             _bwThreadForPages.WorkerSupportsCancellation = true;
             _bwThreadForPages.WorkerReportsProgress = true;
             _bwThreadForPages.DoWork += new DoWorkEventHandler(AddPages_DoWork);
+            _bwThreadForPages.ProgressChanged += new ProgressChangedEventHandler(AddPages_ProgressChanged);
+            _bwThreadForPages.RunWorkerCompleted += new RunWorkerCompletedEventHandler(AddPages_Completed);
         }
 
         #region Drag and Drop Handling
@@ -540,8 +542,8 @@ namespace RobsPdfEditor
             _curFileNames.Add(fileName);
             _curBackgroundLoadingFileIdx = 0;
             _changesMade = false;
-            UpdateWindowTitle();
             _bwThreadForPages.RunWorkerAsync();
+            UpdateWindowTitle();
         }
 
         public void AddFile(string fileName)
@@ -556,8 +558,8 @@ namespace RobsPdfEditor
             // Add the file name to the list of edited files
             _curFileNames.Add(fileName);
             _curBackgroundLoadingFileIdx++;
-            UpdateWindowTitle();
             _bwThreadForPages.RunWorkerAsync();
+            UpdateWindowTitle();
         }
 
         private void AddPages_DoWork(object sender, DoWorkEventArgs e)
@@ -596,11 +598,18 @@ namespace RobsPdfEditor
                     _pdfPageList.Add(pgInfo);
                 });
                 Thread.Sleep(50);
+                (sender as BackgroundWorker).ReportProgress(i * 100 / _pdfRasterizer.NumPages(), null);
             }
-            this.Dispatcher.BeginInvoke((Action)delegate()
-            {
-                UpdateWindowTitle();
-            });
+        }
+
+        private void AddPages_ProgressChanged(object sender, ProgressChangedEventArgs e)
+        {
+            UpdateWindowTitle();
+        }
+
+        private void AddPages_Completed(object sender, RunWorkerCompletedEventArgs e)
+        {
+            UpdateWindowTitle();
         }
 
         #endregion
@@ -635,21 +644,25 @@ namespace RobsPdfEditor
             RobsPDFEditor.Title = _windowTitle + ((_curFileNames.Count > 0) ? "" : (" - " + System.IO.Path.GetFileName(_curFileNames[0]) + (_changesMade ? " *" : "")));
 
             // In and out file status
-            curInFileInfo.Content = "Input: " + _curFileNames.Count.ToString() + " file" + (_curFileNames.Count == 1 ? "" : "s") + ", " + _pdfPageList.Count.ToString() + " page" + (_pdfPageList.Count == 1 ? "" : "s");
+            bool isBusy = _bwThreadForPages.IsBusy;
             int numOutFiles = 1;
             int pageNum = 1;
             int pageTotal = 0;
             GetFileAndPageOfLastOutDoc(out numOutFiles, out pageNum, out pageTotal, false);
             if (_pdfPageList.Count == 0)
                 numOutFiles = 0;
-            curOutFileInfo.Content = "Output: " + numOutFiles.ToString() + " file" + (numOutFiles == 1 ? "" : "s") + ", " + pageTotal.ToString() + " page" + (pageTotal == 1 ? "" : "s");
+            curInFileInfo.Content = "Input: " + _curFileNames.Count.ToString() + " file" + (_curFileNames.Count == 1 ? "" : "s") + ", " + _pdfPageList.Count.ToString() + " page" + (_pdfPageList.Count == 1 ? "" : "s");
+            if (isBusy)
+                curOutFileInfo.Content = "Busy ...";
+            else
+                curOutFileInfo.Content = "Output: " + numOutFiles.ToString() + " file" + (numOutFiles == 1 ? "" : "s") + ", " + pageTotal.ToString() + " page" + (pageTotal == 1 ? "" : "s");
 
             // Button enables
-            btnAddFile.IsEnabled = (_curFileNames.Count > 0);
-            btnSaveFile.IsEnabled = (numOutFiles > 0);
-            btnReplaceFile.IsEnabled = (numOutFiles == 1);
-            btnRotateAllACWFile.IsEnabled = (_pdfPageList.Count > 0);
-            btnRotateAllCWFile.IsEnabled = (_pdfPageList.Count > 0);
+            btnAddFile.IsEnabled = (_curFileNames.Count > 0) & !isBusy;
+            btnSaveFile.IsEnabled = (numOutFiles > 0) & !isBusy;
+            btnReplaceFile.IsEnabled = (numOutFiles == 1) & !isBusy;
+            btnRotateAllACWFile.IsEnabled = (_pdfPageList.Count > 0) & !isBusy;
+            btnRotateAllCWFile.IsEnabled = (_pdfPageList.Count > 0) & !isBusy;
         }
 
         private string GenOutFileName(string curFileName, int fileIdx)

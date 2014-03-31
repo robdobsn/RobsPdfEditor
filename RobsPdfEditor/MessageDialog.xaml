@@ -3,12 +3,12 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:Controls="clr-namespace:MahApps.Metro.Controls;assembly=MahApps.Metro"
         Title="Information" Height="255" Width="583" Loaded="MetroWindow_Loaded">
-    <Grid>
+    <Grid Background="LightGray">
         <Button x:Name="btnYes" Content="Yes" HorizontalAlignment="Left" Height="60" Margin="75,138,0,0" VerticalAlignment="Top" Width="106" Click="btnYes_Click" FontSize="24"  Style="{DynamicResource SquareButtonStyle}"/>
         <Button x:Name="btnNo" Content="No" HorizontalAlignment="Left" Height="60" Margin="224,138,0,0" VerticalAlignment="Top" Width="106" Click="btnNo_Click" FontSize="24" Style="{DynamicResource SquareButtonStyle}"/>
         <Button x:Name="btnCancel" Content="Cancel" HorizontalAlignment="Left" Height="60" Margin="374,138,0,0" VerticalAlignment="Top" Width="106" Click="btnCancel_Click" FontSize="24" Style="{DynamicResource SquareButtonStyle}" IsCancel="True"/>
         <Border BorderBrush="{x:Null}" Margin="0,10,0,92">
-            <TextBlock x:Name="txtMessage" TextWrapping="Wrap" Text="Message" TextAlignment="Center" VerticalAlignment="Center" FontSize="18"/>
+            <TextBlock x:Name="txtMessage" TextWrapping="Wrap" Text="Message" Margin="15" TextAlignment="Center" VerticalAlignment="Center" FontSize="18"/>
         </Border>
     </Grid>
 </Controls:MetroWindow>

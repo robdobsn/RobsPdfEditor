@@ -92,10 +92,17 @@
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
+    <Page Include="OutputFilenames.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="MessageDialog.xaml.cs">
       <DependentUpon>MessageDialog.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="OutputFilenames.xaml.cs">
+      <DependentUpon>OutputFilenames.xaml</DependentUpon>
     </Compile>
     <Compile Include="PdfRasterizer.cs" />
     <Compile Include="Properties\AssemblyInfo.cs">
@@ -123,6 +130,8 @@
       <LastGenOutput>Settings.Designer.cs</LastGenOutput>
     </None>
     <AppDesigner Include="Properties\" />
+    <None Include="res\appbar.transform.rotate.all.90.svg" />
+    <None Include="res\appbar.transform.rotate.all.minus90.svg" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
@@ -152,6 +161,19 @@
     <Resource Include="res\appbar.transform.rotate.180.gray.png" />
     <Resource Include="res\appbar.transform.rotate.90.gray.png" />
     <Resource Include="res\appbar.transform.rotate.minus90.gray.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <Resource Include="res\appbar.magnify.add.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <Resource Include="res\appbar.transform.rotate.all.90.png" />
+    <Resource Include="res\appbar.transform.rotate.all.minus90.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <Resource Include="res\appbar.folder.open.add.png" />
+    <Resource Include="res\appbar.folder.open.png" />
+    <Resource Include="res\appbar.folder.png" />
+    <Resource Include="res\appbar.save.png" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

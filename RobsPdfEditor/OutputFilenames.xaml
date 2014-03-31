@@ -1,0 +1,38 @@
+﻿<Controls:MetroWindow x:Class="RobsPdfEditor.OutputFilenames"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:Controls="clr-namespace:MahApps.Metro.Controls;assembly=MahApps.Metro"
+        Title="Save As Filenames" Height="370" Width="820">
+    <Window.Resources>
+        <Style x:Key="NoHighlightCellStyle" TargetType="{x:Type DataGridCell}">
+            <Setter Property="Foreground" Value="Green" />
+            <Style.Triggers>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="{x:Null}" />
+                    <Setter Property="BorderBrush" Value="{x:Null}" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+    </Window.Resources>
+    <Grid Background="#ff6a6a6a">
+        <Grid.RowDefinitions>
+            <RowDefinition/>
+            <RowDefinition Height="53"/>
+        </Grid.RowDefinitions>
+        <DataGrid Grid.Row="0" x:Name="OutputFileNamesGrid" AutoGenerateColumns="False" GridLinesVisibility="All" CanUserAddRows="False" CanUserDeleteRows="False" CanUserReorderColumns="False" CanUserSortColumns="False" FontSize="16px" Background="LightGray">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Output file"  Binding="{Binding FileNumber}" CanUserSort="False" IsReadOnly="True" CellStyle="{StaticResource NoHighlightCellStyle}"/>
+                <DataGridTextColumn Header="FileName" Binding="{Binding FileName}" CanUserSort="False" />
+                <DataGridTemplateColumn IsReadOnly="True">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <Button Click="SetFileName" Style="{DynamicResource SquareButtonStyle}">...</Button>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+            </DataGrid.Columns>
+        </DataGrid>
+        <Button x:Name="btnSaveAsFormOk" Content="Ok" Margin="0,0,127,10" Grid.Row="1" Style="{DynamicResource SquareButtonStyle}" Click="btnSaveAsFormOk_Click" FontSize="16" HorizontalAlignment="Right" Width="80" Height="33" VerticalAlignment="Bottom" />
+        <Button x:Name="btnSaveAsFormCancel" Content="Cancel" Margin="0,0,20,10" Grid.Row="1" Style="{DynamicResource SquareButtonStyle}" Click="btnSaveAsFormCancel_Click" FontSize="16" HorizontalAlignment="Right" Width="80" Height="33" VerticalAlignment="Bottom" />
+    </Grid>
+</Controls:MetroWindow>

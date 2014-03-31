@@ -213,7 +213,44 @@ namespace RobsPdfEditor
 
         private void PdfListViewer_MouseWheel(object sender, MouseWheelEventArgs e)
         {
-            PdfListViewer.ScrollToHorizontalOffset(PdfListViewer.HorizontalOffset + e.Delta);
+            PdfListViewer.ScrollToHorizontalOffset(PdfListViewer.HorizontalOffset - e.Delta);
+        }
+
+        private void MagnifyIcon_MouseDown(object sender, MouseButtonEventArgs e)
+        {
+            int pageIdx = ExtractFileAndPageIdxs(sender);
+            if (pageIdx < 0)
+                return;
+            if ((pageIdx >= 0) && (pageIdx < _pdfPageList.Count))
+            {
+                popupPageMagnifyImage.Source = _pdfPageList[pageIdx].ThumbBitmap;
+                popupPageMagnify.PlacementTarget = (UIElement)sender;
+                if (!popupPageMagnify.IsOpen)
+                    popupPageMagnify.IsOpen = true;
+            }
+        }
+
+        private void btnRotateAllACWFile_Click(object sender, RoutedEventArgs e)
+        {
+            RotateAllPages(90);
+        }
+
+        private void btnRotateAllCWFile_Click(object sender, RoutedEventArgs e)
+        {
+            RotateAllPages(-90);
+        }
+
+        private void RotateAllPages(int angle)
+        {
+            for (int pageIdx = 0; pageIdx < _pdfPageList.Count; pageIdx++)
+            {
+                double reqdRotation = _pdfPageList[pageIdx].PageRotation + angle;
+                while (reqdRotation < 0)
+                    reqdRotation += 360;
+                reqdRotation = reqdRotation % 360;
+                _pdfPageList[pageIdx].PageRotation = reqdRotation;
+            }
+            UpdateWindowTitle(true);
         }
 
         #endregion
@@ -261,6 +298,33 @@ namespace RobsPdfEditor
             if (_curFileNames.Count < 1)
                 return;
 
+            // Find how many output files
+            int fileNum = 1;
+            int pageNum = 1;
+            GetFileAndPageOfLastOutDoc(out fileNum, out pageNum, true);
+
+            // Generate suggested file names
+            List<string> suggestedNames = new List<string>();
+            for (int fileIdx = 0; fileIdx < fileNum; fileIdx++)
+            {
+                string outFileName = GenOutFileName(_curFileNames[0], fileIdx);
+                suggestedNames.Add(outFileName);
+            }
+
+            // Display save-as dialog
+            OutputFilenames outFileNamesForm = new OutputFilenames(suggestedNames);
+            outFileNamesForm.ShowDialog();
+            if (!outFileNamesForm.okClicked)
+                return;
+            
+            using (new WaitCursor())
+            {
+                SaveFiles(outFileNamesForm.GetOutputFileNames());
+            }
+        }
+
+        private void SaveFiles(List<string> outputFileNames)
+        {
             // Open pdf readers for each input file
             List<Stream> inPDFStreams = new List<Stream>();
             List<PdfReader> pdfReaders = new List<PdfReader>();
@@ -286,15 +350,10 @@ namespace RobsPdfEditor
                 if (_pdfPageList[pdfPageListIdx].DeletePage)
                     continue;
 
-                // Create output PDF
-                string outFileName = GenOutFileName(_curFileNames[0], pdfOutFileIdx++);
-                if (File.Exists(outFileName))
-                {
-                    // Ask the user if they are sure
-                    MessageDialog.Show("Cannot save as output file exists already", "", "", "OK", null, this);
-                    return;
-                }
+                // Output file name
+                string outFileName = outputFileNames[pdfOutFileIdx++];
 
+                // Read the pages and process
                 using (FileStream fs = new FileStream(outFileName, FileMode.Create, FileAccess.Write, FileShare.None))
                 {
                     using (Document inDoc = new Document(pdfReaders[0].GetPageSizeWithRotation(1)))
@@ -453,6 +512,27 @@ namespace RobsPdfEditor
         #endregion
 
         #region Utility Functions
+
+        private class WaitCursor : IDisposable
+        {
+            private Cursor _previousCursor;
+
+            public WaitCursor()
+            {
+                _previousCursor = Mouse.OverrideCursor;
+
+                Mouse.OverrideCursor = Cursors.Wait;
+            }
+
+            #region IDisposable Members
+
+            public void Dispose()
+            {
+                Mouse.OverrideCursor = _previousCursor;
+            }
+
+            #endregion
+        }
 
         private void UpdateWindowTitle(bool changesMade = false)
         {
@@ -701,7 +781,6 @@ namespace RobsPdfEditor
         }
 
         #endregion
-
 
     }
 }

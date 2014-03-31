@@ -301,7 +301,8 @@ namespace RobsPdfEditor
             // Find how many output files
             int fileNum = 1;
             int pageNum = 1;
-            GetFileAndPageOfLastOutDoc(out fileNum, out pageNum, true);
+            int pageTotal = 0;
+            GetFileAndPageOfLastOutDoc(out fileNum, out pageNum, out pageTotal, true);
 
             // Generate suggested file names
             List<string> suggestedNames = new List<string>();
@@ -316,14 +317,71 @@ namespace RobsPdfEditor
             outFileNamesForm.ShowDialog();
             if (!outFileNamesForm.okClicked)
                 return;
-            
+
+            bool bSaveOk = false;
             using (new WaitCursor())
+                bSaveOk = SaveFiles(outFileNamesForm.GetOutputFileNames());
+            if (!bSaveOk)
+                MessageDialog.Show("Problem saving files, check the error log", "Problem", "", "Ok", null, this);
+        }
+
+        private void btnReplaceFile_Click(object sender, RoutedEventArgs e)
+        {
+            // Need to save to a temporary file name and then swap over
+            if (CheckIfThreadBusy())
+                return;
+
+            if (_curFileNames.Count < 1)
+                return;
+
+            // Check there is only one file
+            int fileNum = 1;
+            int pageNum = 1;
+            int pageTotal = 0;
+            GetFileAndPageOfLastOutDoc(out fileNum, out pageNum, out pageTotal, true);
+            if ((fileNum != 1) || (pageTotal == 0))
+                return;
+
+            // Save to temporary file
+            string tempFileName = System.IO.Path.GetTempFileName();
+            List<string> outFileNames = new List<string>();
+            outFileNames.Add(tempFileName);
+            bool bSaveOk = false;
+            using (new WaitCursor())
+                bSaveOk = SaveFiles(outFileNames);
+            if (!bSaveOk)
             {
-                SaveFiles(outFileNamesForm.GetOutputFileNames());
+                MessageDialog.Show("Problem saving file, check the error log", "Problem", "", "Ok", null, this);
+                return;
+            }
+
+            // Replace original file with 
+            try
+            {
+                System.IO.File.Copy(tempFileName, _curFileNames[0], true);
+            }
+            catch (Exception excp)
+            {
+                logger.Error("Failed to replace original file {0} excp {1}", _curFileNames[0], excp.Message);
+                MessageDialog.Show("Problem replacing file, check the error log", "Problem", "", "Ok", null, this);                
+            }
+
+            // Delete temp file
+            try
+            {
+                System.IO.File.Delete(tempFileName);
+            }
+            catch (Exception excp)
+            {
+                logger.Error("Failed to delete temp file {0} excp {1}", tempFileName, excp.Message);
             }
         }
 
-        private void SaveFiles(List<string> outputFileNames)
+        #endregion
+
+        #region Save Files
+
+        private bool SaveFiles(List<string> outputFileNames)
         {
             // Open pdf readers for each input file
             List<Stream> inPDFStreams = new List<Stream>();
@@ -339,11 +397,24 @@ namespace RobsPdfEditor
                 catch (Exception excp)
                 {
                     logger.Error("Failed to open input pdf {0} excp {1}", fileName, excp.Message);
+                    return false;
+                }
+            }
+
+            // Check an output file isn't an input file
+            foreach (string fileName in _curFileNames)
+            {
+                if (outputFileNames.Contains(fileName))
+                {
+                    MessageDialog md = new MessageDialog("At least one output file is an input file - cannot continue", "Ok", "", "", null, this);
+                    md.Show();
+                    return false;
                 }
             }
 
             // Loop through PDFs to be created
             int pdfOutFileIdx = 0;
+            bool filesSavedOk = true;
             for (int pdfPageListIdx = 0; pdfPageListIdx < _pdfPageList.Count; pdfPageListIdx++)
             {
                 // Skip deleted pages
@@ -354,86 +425,104 @@ namespace RobsPdfEditor
                 string outFileName = outputFileNames[pdfOutFileIdx++];
 
                 // Read the pages and process
-                using (FileStream fs = new FileStream(outFileName, FileMode.Create, FileAccess.Write, FileShare.None))
+                try
                 {
-                    using (Document inDoc = new Document(pdfReaders[0].GetPageSizeWithRotation(1)))
+                    using (FileStream fs = new FileStream(outFileName, FileMode.Create, FileAccess.Write, FileShare.None))
                     {
-                        using (PdfWriter outputWriter = PdfWriter.GetInstance(inDoc, fs))
+                        using (Document inDoc = new Document(pdfReaders[0].GetPageSizeWithRotation(1)))
                         {
-                            // Open input
-                            inDoc.Open();
-
-                            // Go through pages in input PDF
-                            for (; pdfPageListIdx < _pdfPageList.Count; pdfPageListIdx++)
+                            using (PdfWriter outputWriter = PdfWriter.GetInstance(inDoc, fs))
                             {
-                                // Skip deleted pages
-                                if (!_pdfPageList[pdfPageListIdx].DeletePage)
+                                // Open input
+                                inDoc.Open();
+
+                                // Go through pages in input PDF
+                                for (; pdfPageListIdx < _pdfPageList.Count; pdfPageListIdx++)
                                 {
-                                    // Add the page
-                                    int pageNum = _pdfPageList[pdfPageListIdx].PageNum;
-                                    int fileIdx = _pdfPageList[pdfPageListIdx].FileIndex;
-
-                                    // Get rotation
-                                    int pageRotation = pdfReaders[fileIdx].GetPageRotation(pageNum) + (int)_pdfPageList[pdfPageListIdx].PageRotation;
-                                    if (pageRotation < 0)
-                                        pageRotation = pageRotation + 360;
-                                    pageRotation = pageRotation % 360;
-
-                                    // Create a new destination page of the right dimensions
-                                    iTextSharp.text.Rectangle pageSize = pdfReaders[fileIdx].GetPageSizeWithRotation(pageNum);
-                                    if (pageRotation == 90 || pageRotation == 270)
-                                        pageSize = new iTextSharp.text.Rectangle(pageSize.Height, pageSize.Width);
-                                    inDoc.SetPageSize(pageSize);
-                                    inDoc.NewPage();
-
-                                    // Get original page
-                                    PdfImportedPage importedPage = outputWriter.GetImportedPage(pdfReaders[fileIdx], pageNum);
-
-                                    // Handle rotation
-
-                                    var pageWidth = pdfReaders[fileIdx].GetPageSizeWithRotation(pageNum).Width;
-                                    var pageHeight = pdfReaders[fileIdx].GetPageSizeWithRotation(pageNum).Height;
-                                    switch (pageRotation)
+                                    // Skip deleted pages
+                                    if (!_pdfPageList[pdfPageListIdx].DeletePage)
                                     {
-                                        case 0:
-                                        default:
-                                            outputWriter.DirectContent.AddTemplate(importedPage, 1f, 0, 0, 1f, 0, 0);
-                                            break;
+                                        // Add the page
+                                        int pageNum = _pdfPageList[pdfPageListIdx].PageNum;
+                                        int fileIdx = _pdfPageList[pdfPageListIdx].FileIndex;
 
-                                        case 90:
-                                            outputWriter.DirectContent.AddTemplate(importedPage, 0, -1f, 1f, 0, 0, pageWidth);
-                                            break;
+                                        // Get rotation
+                                        int pageRotation = pdfReaders[fileIdx].GetPageRotation(pageNum) + (int)_pdfPageList[pdfPageListIdx].PageRotation;
+                                        if (pageRotation < 0)
+                                            pageRotation = pageRotation + 360;
+                                        pageRotation = pageRotation % 360;
 
-                                        case 180:
-                                            outputWriter.DirectContent.AddTemplate(importedPage, -1f, 0, 0, -1f, pageWidth, pageHeight);
-                                            break;
+                                        // Create a new destination page of the right dimensions
+                                        iTextSharp.text.Rectangle pageSize = pdfReaders[fileIdx].GetPageSizeWithRotation(pageNum);
+                                        //if (pageRotation == 90 || pageRotation == 270)
+                                        //    pageSize = new iTextSharp.text.Rectangle(pageSize.Height, pageSize.Width);
+                                        inDoc.SetPageSize(pageSize);
+                                        inDoc.NewPage();
 
-                                        case 270:
-                                            outputWriter.DirectContent.AddTemplate(importedPage, 0, 1f, -1f, 0, pageHeight, 0);
-                                            break;
+                                        // Get original page
+                                        PdfImportedPage importedPage = outputWriter.GetImportedPage(pdfReaders[fileIdx], pageNum);
+
+                                        // Handle rotation
+
+                                        var pageWidth = pdfReaders[fileIdx].GetPageSizeWithRotation(pageNum).Width;
+                                        var pageHeight = pdfReaders[fileIdx].GetPageSizeWithRotation(pageNum).Height;
+                                        switch (pageRotation)
+                                        {
+                                            case 0:
+                                            default:
+                                                outputWriter.DirectContent.AddTemplate(importedPage, 1f, 0, 0, 1f, 0, 0);
+                                                break;
+
+                                            case 90:
+                                                outputWriter.DirectContent.AddTemplate(importedPage, 0, -1f, 1f, 0, 0, pageWidth);
+                                                break;
+
+                                            case 180:
+                                                outputWriter.DirectContent.AddTemplate(importedPage, -1f, 0, 0, -1f, pageWidth, pageHeight);
+                                                break;
+
+                                            case 270:
+                                                outputWriter.DirectContent.AddTemplate(importedPage, 0, 1f, -1f, 0, pageWidth, 0);
+                                                break;
+                                        }
                                     }
+
+                                    // Check if this is the last page in this PDF
+                                    if (_pdfPageList[pdfPageListIdx].SplitAfter)
+                                        break;
                                 }
 
-                                // Check if this is the last page in this PDF
-                                if (_pdfPageList[pdfPageListIdx].SplitAfter)
-                                    break;
+                                // Close document
+                                inDoc.Close();
+
                             }
-
-                            // Close document
-                            inDoc.Close();
-
                         }
                     }
                 }
+                catch (Exception excp)
+                {
+                    logger.Error("Exception saving file {0} excp {1}", outFileName, excp.Message);
+                    filesSavedOk = false;
+                    break;
+                }
             }
 
-            foreach (PdfReader pdfReader in pdfReaders)
-                pdfReader.Close();
-            foreach (Stream strm in inPDFStreams)
-                strm.Close();
+            try
+            {
+                foreach (PdfReader pdfReader in pdfReaders)
+                    pdfReader.Close();
+                foreach (Stream strm in inPDFStreams)
+                    strm.Close();
+            }
+            catch (Exception excp)
+            {
+                logger.Error("Exception closing pdfReaders excp {0}", excp.Message);
+            }
 
-            _changesMade = false;
+            _changesMade = !filesSavedOk;
             UpdateWindowTitle();
+
+            return filesSavedOk;
         }
 
         #endregion
@@ -478,7 +567,8 @@ namespace RobsPdfEditor
 
             int startNewPageNum = 1;
             int startNewFileNum = 1;
-            GetFileAndPageOfLastOutDoc(out startNewFileNum, out startNewPageNum);
+            int pageTotal = 0;
+            GetFileAndPageOfLastOutDoc(out startNewFileNum, out startNewPageNum, out pageTotal);
 
             for (int i = 0; i < _pdfRasterizer.NumPages(); i++)
             {
@@ -507,6 +597,10 @@ namespace RobsPdfEditor
                 });
                 Thread.Sleep(50);
             }
+            this.Dispatcher.BeginInvoke((Action)delegate()
+            {
+                UpdateWindowTitle();
+            });
         }
 
         #endregion
@@ -539,6 +633,23 @@ namespace RobsPdfEditor
             if (changesMade)
                 _changesMade = true;
             RobsPDFEditor.Title = _windowTitle + ((_curFileNames.Count > 0) ? "" : (" - " + System.IO.Path.GetFileName(_curFileNames[0]) + (_changesMade ? " *" : "")));
+
+            // In and out file status
+            curInFileInfo.Content = "Input: " + _curFileNames.Count.ToString() + " file" + (_curFileNames.Count == 1 ? "" : "s") + ", " + _pdfPageList.Count.ToString() + " page" + (_pdfPageList.Count == 1 ? "" : "s");
+            int numOutFiles = 1;
+            int pageNum = 1;
+            int pageTotal = 0;
+            GetFileAndPageOfLastOutDoc(out numOutFiles, out pageNum, out pageTotal, false);
+            if (_pdfPageList.Count == 0)
+                numOutFiles = 0;
+            curOutFileInfo.Content = "Output: " + numOutFiles.ToString() + " file" + (numOutFiles == 1 ? "" : "s") + ", " + pageTotal.ToString() + " page" + (pageTotal == 1 ? "" : "s");
+
+            // Button enables
+            btnAddFile.IsEnabled = (_curFileNames.Count > 0);
+            btnSaveFile.IsEnabled = (numOutFiles > 0);
+            btnReplaceFile.IsEnabled = (numOutFiles == 1);
+            btnRotateAllACWFile.IsEnabled = (_pdfPageList.Count > 0);
+            btnRotateAllCWFile.IsEnabled = (_pdfPageList.Count > 0);
         }
 
         private string GenOutFileName(string curFileName, int fileIdx)
@@ -604,6 +715,9 @@ namespace RobsPdfEditor
 
         private BitmapImage ConvertToBitmap(System.Drawing.Image img)
         {
+            if (img == null)
+                return new BitmapImage();
+
             MemoryStream ms = new MemoryStream();
             img.Save(ms, System.Drawing.Imaging.ImageFormat.Jpeg);
             System.Windows.Media.Imaging.BitmapImage bImg = new System.Windows.Media.Imaging.BitmapImage();
@@ -625,15 +739,19 @@ namespace RobsPdfEditor
         {
             int fileNum = 1;
             int pageNum = 1;
-            GetFileAndPageOfLastOutDoc(out fileNum, out pageNum, true);
+            int pageTotal = 0;
+            GetFileAndPageOfLastOutDoc(out fileNum, out pageNum, out pageTotal, true);
         }
 
-        private void GetFileAndPageOfLastOutDoc(out int fileNum, out int pageNum, bool rewrite = false)
+
+        private void GetFileAndPageOfLastOutDoc(out int fileNum, out int pageNum, out int pageTotal, bool rewrite = false)
         {
+            pageTotal = 0;
             fileNum = 1;
             pageNum = 1;
-            foreach (PdfPageInfo ppi in _pdfPageList)
+            for (int pageIdx = 0; pageIdx < _pdfPageList.Count; pageIdx++ )
             {
+                PdfPageInfo ppi = _pdfPageList[pageIdx];
                 if (rewrite)
                 {
                     if (ppi.NewDocPageNum != pageNum)
@@ -644,7 +762,8 @@ namespace RobsPdfEditor
                 if (ppi.DeletePage)
                     continue;
                 pageNum++;
-                if (ppi.SplitAfter)
+                pageTotal++;
+                if (ppi.SplitAfter && pageIdx != _pdfPageList.Count-1)
                 {
                     fileNum++;
                     pageNum = 1;

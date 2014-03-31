@@ -11,6 +11,10 @@
             <RowDefinition/>
         </Grid.RowDefinitions>
         <Grid Grid.Row="0" Background="#FF6A6A6A">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="114*"/>
+                <ColumnDefinition Width="35*"/>
+            </Grid.ColumnDefinitions>
             <Button x:Name="btnOpenFile" HorizontalAlignment="Left" Height="51" Margin="17,17,0,0" VerticalContentAlignment="Center" VerticalAlignment="Top" Width="89" Style="{DynamicResource SquareButtonStyle}" Click="btnOpenFile_Click" FontSize="16">
                 <Image Source="res/appbar.folder.open.png" ></Image>
             </Button>
@@ -18,14 +22,21 @@
                 <Image Source="res/appbar.folder.open.add.png" ></Image>
             </Button>
             <Button x:Name="btnSaveFile" HorizontalAlignment="Left" Height="51" Margin="300,17,0,0"  VerticalContentAlignment="Center" VerticalAlignment="Top" Width="89" Style="{DynamicResource SquareButtonStyle}" Click="btnSaveFile_Click" FontSize="16" >
-                <Image Source="res/appbar.save.png" ></Image>
+                <Image Source="res/appbar.save.multiple.png" ></Image>
             </Button>
-            <Button x:Name="btnRotateAllACWFile" HorizontalAlignment="Left" Height="51" Margin="444,17,0,0" VerticalAlignment="Top" Width="89" Style="{DynamicResource SquareButtonStyle}" Click="btnRotateAllACWFile_Click" >
+            <Button x:Name="btnReplaceFile" HorizontalAlignment="Left" Height="51" Margin="444,17,0,0"  VerticalContentAlignment="Center" VerticalAlignment="Top" Width="89" Style="{DynamicResource SquareButtonStyle}" Click="btnReplaceFile_Click" FontSize="16" >
+                <Image Source="res/appbar.save.replace.png" ></Image>
+            </Button>
+            <Button x:Name="btnRotateAllACWFile" HorizontalAlignment="Left" Height="51" Margin="588,17,0,0" VerticalAlignment="Top" Width="89" Style="{DynamicResource SquareButtonStyle}" Click="btnRotateAllACWFile_Click" >
                 <Image Source="res/appbar.transform.rotate.all.minus90.png" ></Image>
             </Button>
-            <Button x:Name="btnRotateAllCWFile" HorizontalAlignment="Left" Height="51" Margin="588,17,0,0" VerticalAlignment="Top" Width="89" Style="{DynamicResource SquareButtonStyle}" Click="btnRotateAllCWFile_Click">
+            <Button x:Name="btnRotateAllCWFile" HorizontalAlignment="Left" Height="51" Margin="732,17,0,0" VerticalAlignment="Top" Width="89" Style="{DynamicResource SquareButtonStyle}" Click="btnRotateAllCWFile_Click">
                 <Image Source="res/appbar.transform.rotate.all.90.png" ></Image>
             </Button>
+            <Grid Grid.Column="1" Margin="0,10,10,10">
+                <Label x:Name="curInFileInfo" FontSize="16" Margin="0,0,0,34" VerticalContentAlignment="Center" Foreground="White" >Input:</Label>
+                <Label x:Name="curOutFileInfo" FontSize="16" Margin="0,31,0,0" VerticalContentAlignment="Center" Foreground="White">Output:</Label>
+            </Grid>
         </Grid>
         <Popup x:Name="popupPageMagnify" AllowsTransparency="True" Placement="Relative" StaysOpen="False">
             <Border BorderThickness="2" BorderBrush="Black">

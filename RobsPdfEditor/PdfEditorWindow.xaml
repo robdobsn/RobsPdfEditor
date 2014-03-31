@@ -44,7 +44,7 @@
             </Border>
         </Popup>
         <ScrollViewer x:Name="PdfListViewer" Grid.Row="1"  HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Hidden"
-                                         MouseWheel="PdfListViewer_MouseWheel"             
+                                      WpfExtensions:DragDropExtension.ScrollOnDragDrop="True"   MouseWheel="PdfListViewer_MouseWheel"             
                       >
             <ItemsControl x:Name="pageThumbs">
                 <ItemsControl.ItemsPanel>

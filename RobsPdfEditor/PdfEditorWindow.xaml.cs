@@ -328,7 +328,7 @@ namespace RobsPdfEditor
             }
 
             // Display save-as dialog (unless running embedded)
-            if (_bRunningEmbedded)
+            if (!_bRunningEmbedded)
             {
                 OutputFilenames outFileNamesForm = new OutputFilenames(outputFileNames);
                 outFileNamesForm.ShowDialog();
@@ -485,8 +485,8 @@ namespace RobsPdfEditor
 
                                         // Create a new destination page of the right dimensions
                                         iTextSharp.text.Rectangle pageSize = pdfReaders[fileIdx].GetPageSizeWithRotation(pageNum);
-                                        //if (pageRotation == 90 || pageRotation == 270)
-                                        //    pageSize = new iTextSharp.text.Rectangle(pageSize.Height, pageSize.Width);
+                                        if ((int)_pdfPageList[pdfPageListIdx].PageRotation == 90 || (int)_pdfPageList[pdfPageListIdx].PageRotation == 270)
+                                            pageSize = new iTextSharp.text.Rectangle(pageSize.Height, pageSize.Width);
                                         inDoc.SetPageSize(pageSize);
                                         inDoc.NewPage();
 
@@ -494,9 +494,6 @@ namespace RobsPdfEditor
                                         PdfImportedPage importedPage = outputWriter.GetImportedPage(pdfReaders[fileIdx], pageNum);
 
                                         // Handle rotation
-
-                                        var pageWidth = pdfReaders[fileIdx].GetPageSizeWithRotation(pageNum).Width;
-                                        var pageHeight = pdfReaders[fileIdx].GetPageSizeWithRotation(pageNum).Height;
                                         switch (pageRotation)
                                         {
                                             case 0:
@@ -505,15 +502,15 @@ namespace RobsPdfEditor
                                                 break;
 
                                             case 90:
-                                                outputWriter.DirectContent.AddTemplate(importedPage, 0, -1f, 1f, 0, 0, pageWidth);
+                                                outputWriter.DirectContent.AddTemplate(importedPage, 0, -1f, 1f, 0, 0, pageSize.Width);
                                                 break;
 
                                             case 180:
-                                                outputWriter.DirectContent.AddTemplate(importedPage, -1f, 0, 0, -1f, pageWidth, pageHeight);
+                                                outputWriter.DirectContent.AddTemplate(importedPage, -1f, 0, 0, -1f, pageSize.Width, pageSize.Height);
                                                 break;
 
                                             case 270:
-                                                outputWriter.DirectContent.AddTemplate(importedPage, 0, 1f, -1f, 0, pageWidth, 0);
+                                                outputWriter.DirectContent.AddTemplate(importedPage, 0, 1f, -1f, 0, pageSize.Width, 0);
                                                 break;
                                         }
                                     }

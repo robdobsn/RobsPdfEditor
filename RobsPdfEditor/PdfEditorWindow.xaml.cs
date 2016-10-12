@@ -36,7 +36,7 @@ namespace RobsPdfEditor
         public static BitmapImage deleteIconOff;
         public static BitmapImage deleteIconOn;
         const int THUMBNAIL_HEIGHT = 600;
-        const int POINTS_PER_INCH = 50;
+        const int POINTS_PER_INCH = 80;
         private PdfRasterizer _pdfRasterizer;
         private BackgroundWorker _bwThreadForPages;
         private List<string> _curFileNames = new List<string>();
@@ -46,6 +46,7 @@ namespace RobsPdfEditor
         private bool _bRunningEmbedded = false;
         public delegate void SaveCompleteCallback(string originalFileName, List<string> fileNamesSaved);
         private SaveCompleteCallback _saveCompleteCallback;
+        private string _saveToFolder = "";
 
         public PdfEditorWindow()
         {
@@ -68,12 +69,13 @@ namespace RobsPdfEditor
             _bwThreadForPages.RunWorkerCompleted += new RunWorkerCompletedEventHandler(AddPages_Completed);
         }
 
-        public void OpenEmbeddedPdfEditor(string fileName, SaveCompleteCallback saveCompleteCallback)
+        public void OpenEmbeddedPdfEditor(string fileName, SaveCompleteCallback saveCompleteCallback, string saveToFolder)
         {
             btnOpenFile.IsEnabled = false;
             btnReplaceFile.Visibility = System.Windows.Visibility.Hidden;
             _bRunningEmbedded = true;
             _saveCompleteCallback = saveCompleteCallback;
+            _saveToFolder = saveToFolder;
             OpenFile(fileName);
         }
 
@@ -246,12 +248,12 @@ namespace RobsPdfEditor
 
         private void btnRotateAllACWFile_Click(object sender, RoutedEventArgs e)
         {
-            RotateAllPages(90);
+            RotateAllPages(-90);
         }
 
         private void btnRotateAllCWFile_Click(object sender, RoutedEventArgs e)
         {
-            RotateAllPages(-90);
+            RotateAllPages(90);
         }
 
         private void RotateAllPages(int angle)
@@ -339,10 +341,35 @@ namespace RobsPdfEditor
 
             bool bSaveOk = false;
             using (new WaitCursor())
+            {
+#if TEST_SAVING_OF_PDF
+                for (int i = 0; i < outputFileNames.Count; i++ )
+                {
+                    outputFileNames[i] = @"c:\users\rob_2\documents\1-testpdfedit\testf" + i.ToString() + ".pdf";
+                    try
+                    {
+                        if (File.Exists(outputFileNames[i]))
+                            File.Delete(outputFileNames[i]);
+                    }
+                    catch
+                    {
+                        MessageDialog.Show("Can't delete one or more output files", "", "", "Ok", null, this);
+                        return;
+                    }
                 bSaveOk = SaveFiles(outputFileNames);
             if (!bSaveOk)
             {
-                MessageDialog.Show("Problem saving files, check the error log", "Problem", "", "Ok", null, this);
+                MessageDialog.Show("Problem saving files, check the error log", "", "", "Ok", null, this);
+                return;
+            }
+                }
+                return;
+#endif
+                bSaveOk = SaveFiles(outputFileNames);
+            }
+            if (!bSaveOk)
+            {
+                MessageDialog.Show("Problem saving files, check the error log", "", "", "Ok", null, this);
                 return;
             }
 
@@ -485,15 +512,17 @@ namespace RobsPdfEditor
 
                                         // Create a new destination page of the right dimensions
                                         iTextSharp.text.Rectangle pageSize = pdfReaders[fileIdx].GetPageSizeWithRotation(pageNum);
+                                        iTextSharp.text.Rectangle newPageSize = pdfReaders[fileIdx].GetPageSizeWithRotation(pageNum);
                                         if ((int)_pdfPageList[pdfPageListIdx].PageRotation == 90 || (int)_pdfPageList[pdfPageListIdx].PageRotation == 270)
-                                            pageSize = new iTextSharp.text.Rectangle(pageSize.Height, pageSize.Width);
-                                        inDoc.SetPageSize(pageSize);
+                                            newPageSize = new iTextSharp.text.Rectangle(pageSize.Height, pageSize.Width);
+                                        inDoc.SetPageSize(newPageSize);
                                         inDoc.NewPage();
 
                                         // Get original page
                                         PdfImportedPage importedPage = outputWriter.GetImportedPage(pdfReaders[fileIdx], pageNum);
 
                                         // Handle rotation
+                                        // Fixed based on information in this question - http://stackoverflow.com/questions/3579058/rotating-pdf-in-c-sharp-using-itextsharp
                                         switch (pageRotation)
                                         {
                                             case 0:
@@ -510,9 +539,14 @@ namespace RobsPdfEditor
                                                 break;
 
                                             case 270:
-                                                outputWriter.DirectContent.AddTemplate(importedPage, 0, 1f, -1f, 0, pageSize.Width, 0);
+                                                outputWriter.DirectContent.AddTemplate(importedPage, 0, 1f, -1f, 0, pageSize.Height, 0);
                                                 break;
                                         }
+
+                                        Console.WriteLine("FileIdx {0}, PdfPageListIdx {1}, PageNum {2}, GetPageRotation {3}, userRotation {4}, pageSizeWidth {5},  pageSizeHeight {6},  pageSizeRotation {7}, newSizeWidth {8},  newSizeHeight {9},  newSizeRotation {10}, finalRotation {11}", 
+                                                      fileIdx, pdfPageListIdx, pageNum, pdfReaders[fileIdx].GetPageRotation(pageNum), (int)_pdfPageList[pdfPageListIdx].PageRotation,
+                                                      pdfReaders[fileIdx].GetPageSizeWithRotation(pageNum).Width, pdfReaders[fileIdx].GetPageSizeWithRotation(pageNum).Height, pdfReaders[fileIdx].GetPageSizeWithRotation(pageNum).Rotation,
+                                                      newPageSize.Width, newPageSize.Height, newPageSize.Rotation, pageRotation);
                                     }
 
                                     // Check if this is the last page in this PDF
@@ -560,7 +594,10 @@ namespace RobsPdfEditor
         public void OpenFile(string fileName)
         {
             if (CheckIfThreadBusy())
+            {
+                MessageBox.Show("ThreadBusy");
                 return;
+            }
 
             // Add pages to list of pages
             _pdfPageList.Clear();
@@ -591,13 +628,25 @@ namespace RobsPdfEditor
         private void AddPages_DoWork(object sender, DoWorkEventArgs e)
         {
             BackgroundWorker worker = sender as BackgroundWorker;
-            _pdfRasterizer = new PdfRasterizer(_curFileNames[_curBackgroundLoadingFileIdx], POINTS_PER_INCH);
+            try
+            {
+                _pdfRasterizer = new PdfRasterizer(_curFileNames[_curBackgroundLoadingFileIdx], POINTS_PER_INCH);
+            }
+            catch(Exception excp)
+            {
+                logger.Error("PDF Editor requires Ghostscript {0}", excp.Message);
+                MessageBox.Show("PDF Editor requires Ghostscript to be installed");
+                return;
+            }
 
+            try
+            {
             int startNewPageNum = 1;
             int startNewFileNum = 1;
             int pageTotal = 0;
             GetFileAndPageOfLastOutDoc(out startNewFileNum, out startNewPageNum, out pageTotal);
 
+                // Extract page images
             for (int i = 0; i < _pdfRasterizer.NumPages(); i++)
             {
                 if ((worker.CancellationPending == true))
@@ -606,25 +655,42 @@ namespace RobsPdfEditor
                     break;
                 }
 
-                System.Drawing.Image pageImg = _pdfRasterizer.GetPageImage(i + 1);
+                    System.Drawing.Image pageImg = _pdfRasterizer.GetPageImage(i + 1, false);
 
-                this.Dispatcher.BeginInvoke((Action)delegate()
+                    object[] args = new object[4];
+                    args[0] = i;
+                    args[1] = startNewPageNum;
+                    args[2] = startNewFileNum;
+                    args[3] = pageImg;
+
+                    this.Dispatcher.BeginInvoke((Action<int, int, int, System.Drawing.Image>)delegate(int pageIdx, int startNewPgNum, int startNewFilNum, System.Drawing.Image pagImg)
                 {
-                    BitmapImage bitmap = ConvertToBitmap(pageImg);
+                        BitmapImage bitmap = ConvertToBitmap(pagImg);
                     PdfPageInfo pgInfo = new PdfPageInfo();
-                    pgInfo.PageNum = i + 1;
+                        pgInfo.PageNum = pageIdx + 1;
                     pgInfo.FileIndex = _curBackgroundLoadingFileIdx;
                     pgInfo.ThumbBitmap = bitmap;
                     pgInfo.SplitAfter = false;
                     pgInfo.DeletePage = false;
                     pgInfo.PageRotation = 0;
                     pgInfo.ShowFileNum = (_curBackgroundLoadingFileIdx > 0);
-                    pgInfo.NewDocPageNum = i + startNewPageNum;
-                    pgInfo.NewDocFileNum = startNewFileNum;
+                        pgInfo.NewDocPageNum = pageIdx + startNewPgNum;
+                        pgInfo.NewDocFileNum = startNewFilNum;
                     _pdfPageList.Add(pgInfo);
-                });
+                    }, args);
                 Thread.Sleep(50);
                 (sender as BackgroundWorker).ReportProgress(i * 100 / _pdfRasterizer.NumPages(), null);
+            }
+        }
+            catch(Exception excp)
+            {
+                logger.Error("PDF Editor AddPages_DoWork failed excp {0}", excp.Message);
+            }
+            finally
+            {
+                // Close file
+                _pdfRasterizer.Close();
+                _pdfRasterizer = null;
             }
         }
 
@@ -694,7 +760,10 @@ namespace RobsPdfEditor
         private string GenOutFileName(string curFileName, int fileIdx)
         {
             string fileName = System.IO.Path.GetFileNameWithoutExtension(curFileName) + "_" + fileIdx.ToString() + System.IO.Path.GetExtension(curFileName);
-            return System.IO.Path.Combine(System.IO.Path.GetDirectoryName(curFileName), fileName);
+            string destFolder = System.IO.Path.GetDirectoryName(curFileName);
+            if (_saveToFolder != "")
+                destFolder = _saveToFolder;
+            return System.IO.Path.Combine(destFolder, fileName);
         }
 
         private void RobsPDFEditor_Closing(object sender, CancelEventArgs e)
@@ -757,6 +826,8 @@ namespace RobsPdfEditor
             if (img == null)
                 return new BitmapImage();
 
+            try
+            {
             MemoryStream ms = new MemoryStream();
             img.Save(ms, System.Drawing.Imaging.ImageFormat.Jpeg);
             System.Windows.Media.Imaging.BitmapImage bImg = new System.Windows.Media.Imaging.BitmapImage();
@@ -764,6 +835,12 @@ namespace RobsPdfEditor
             bImg.StreamSource = new MemoryStream(ms.ToArray());
             bImg.EndInit();
             return bImg;
+        }
+            catch (Exception excp)
+            {
+                logger.Error("Failed to convert bitmap {0}", excp.Message);
+            }
+            return new BitmapImage();
         }
 
         private string GetElementTag(object sender)
@@ -798,14 +875,20 @@ namespace RobsPdfEditor
                     if (ppi.NewDocFileNum != fileNum)
                         ppi.NewDocFileNum = fileNum;
                 }
-                if (ppi.DeletePage)
-                    continue;
-                pageNum++;
-                pageTotal++;
                 if (ppi.SplitAfter && pageIdx != _pdfPageList.Count-1)
                 {
                     fileNum++;
                     pageNum = 1;
+                    if (!ppi.DeletePage)
+                        pageTotal++;
+                }
+                else
+                {
+                    if (!ppi.DeletePage)
+                    {
+                        pageNum++;
+                        pageTotal++;
+                    }
                 }
             }
         }

@@ -1,13 +1,16 @@
-﻿using Ghostscript.NET;
-using Ghostscript.NET.Rasterizer;
-using iTextSharp.text.pdf;
-using System;
+﻿using System;
 using System.Collections.Generic;
-using System.Drawing;
-using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Ghostscript.NET;
+using Ghostscript.NET.Rasterizer;
+using System.Diagnostics;
+using System.Drawing.Imaging;
+using System.IO;
+using NLog;
+using System.Drawing;
+using iTextSharp.text.pdf;
 
 namespace RobsPdfEditor
 {
@@ -20,11 +23,14 @@ namespace RobsPdfEditor
         private List<int> _pageRotationInfo = new List<int>();
         private List<iTextSharp.text.Rectangle> _pageSizes = new List<iTextSharp.text.Rectangle>();
         private int _pointsPerInch = 0;
+        private static Logger logger = LogManager.GetCurrentClassLogger();
 
         public PdfRasterizer(string inputPdfPath, int pointsPerInch)
         {
             _pointsPerInch = pointsPerInch;
             // Extract info from pdf using iTextSharp
+            try
+            {
             using (Stream newpdfStream = new FileStream(inputPdfPath, FileMode.Open, FileAccess.Read))
             {
                 using (PdfReader pdfReader = new PdfReader(newpdfStream))
@@ -39,15 +45,33 @@ namespace RobsPdfEditor
                     }
                 }
             }
+            }
+            catch (Exception excp)
+            {
+                logger.Error("Cannot open PDF with iTextSharp {0} excp {1}", inputPdfPath, excp.Message);
+            }
 
             _lastInstalledVersion =
                 GhostscriptVersionInfo.GetLastInstalledVersion(
                         GhostscriptLicense.GPL | GhostscriptLicense.AFPL,
                         GhostscriptLicense.GPL);
 
-            _rasterizer.Open(inputPdfPath, _lastInstalledVersion, false);
+            try
+            {
+                _rasterizer.Open(inputPdfPath.Replace("/",@"\"), _lastInstalledVersion, false);
+            }
+            catch (Exception excp)
+            {
+                logger.Error("Cannot open PDF with ghostscript {0} excp {1}", inputPdfPath, excp.Message);
+            }
+
             _inputPdfPath = inputPdfPath;
 
+        }
+
+        public void Close()
+        {
+            _rasterizer.Close();
         }
 
         public int NumPages()
@@ -55,7 +79,7 @@ namespace RobsPdfEditor
             return _pageRotationInfo.Count;
         }
 
-        public System.Drawing.Image GetPageImage(int pageNum)
+        public System.Drawing.Image GetPageImage(int pageNum, bool rotateBasedOnText)
         {
             // Return from cache if available
             if (_pageCache.ContainsKey(pageNum))
@@ -67,10 +91,13 @@ namespace RobsPdfEditor
             {
                 img = _rasterizer.GetPage(_pointsPerInch, _pointsPerInch, pageNum);
                 // Rotate image as required
+                if (rotateBasedOnText)
+                {
                 int pageIdx = pageNum - 1;
                 if (pageIdx < _pageRotationInfo.Count)
                     if (_pageRotationInfo[pageIdx] != 0)
                         img = RotateImageWithoutCrop(img, _pageRotationInfo[pageIdx]);
+                    }
                 _pageCache.Add(pageNum, img);
             }
             catch (Exception excp)
@@ -79,6 +106,28 @@ namespace RobsPdfEditor
             }
 
             return img;
+        }
+
+        private Bitmap RotateImage(System.Drawing.Image inputImage, float angle)
+        {
+            int outWidth = inputImage.Width;
+            int outHeight = inputImage.Height;
+            if ((angle > 60 && angle < 120) || (angle > 240 && angle < 300))
+            {
+                outWidth = inputImage.Height;
+                outHeight = inputImage.Width;
+            }
+
+            Bitmap rotatedImage = new Bitmap(outWidth, outHeight);
+            using (Graphics g = Graphics.FromImage(rotatedImage))
+            {
+                g.TranslateTransform(inputImage.Width / 2, inputImage.Height / 2); //set the rotation point as the center into the matrix
+                g.RotateTransform(angle); //rotate
+                g.TranslateTransform(-inputImage.Width / 2, -inputImage.Height / 2); //restore rotation point into the matrix
+                g.DrawImage(inputImage, new Point(0, 0)); //draw the image on the new bitmap
+            }
+
+            return rotatedImage;
         }
 
         public Image RotateImageWithoutCrop(Image b, float angle)
